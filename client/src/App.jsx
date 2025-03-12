@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { GitBranch as FlowChart } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import ChatMessage from './components/ChatMessage';
 import PDFUploader from './components/PDFUploader';
+import FlowchartPopup from './components/FlowchartPopup';
 import useChatStore from './store/chatStore';
+
 
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isFlowchartOpen, setIsFlowchartOpen] = useState(false); 
   const [inputMessage, setInputMessage] = useState('');
   const { messages, addMessage, isLoading } = useChatStore();
+
+  const flowchartImage = "https://unsplash.com/photos/golden-sunset-over-white-sand-dunes-Vnnlb1m78w4";
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -33,7 +39,7 @@ function App() {
           
           <div className="max-w-4xl mx-auto">
             {/* Chat Messages */}
-            <div className="bg-gray-800 rounded-lg p-4 mb-4 h-[60vh] overflow-y-auto">
+            <div className="bg-gray-800 rounded-lg p-4 mb-4 h-[50vh] overflow-y-auto">
               {messages.map((msg, idx) => (
                 <ChatMessage
                   key={idx}
@@ -75,6 +81,22 @@ function App() {
           </div>
         </div>
       </main>
+
+      {/* Floating Flowchart Button */}
+      <button
+        onClick={() => setIsFlowchartOpen(true)}
+        className="fixed bottom-6 right-6 bg-blue-600 p-4 rounded-full shadow-lg hover:bg-blue-700 transition-colors z-20"
+        aria-label="Show document flowchart"
+      >
+        <FlowChart size={24} />
+      </button>
+
+      {/* Flowchart Popup */}
+      <FlowchartPopup
+        isOpen={isFlowchartOpen}
+        onClose={() => setIsFlowchartOpen(false)}
+        flowchartImage={flowchartImage}
+      />
     </div>
   );
 }

@@ -11,7 +11,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
       {/* Mobile toggle button */}
       <button
         onClick={toggleSidebar}
-        className="fixed top-4 left-4 z-50 lg:hidden p-2 bg-gray-800 rounded-lg"
+        className="fixed top-4 left-4 z-50  p-2 bg-gray-800 rounded-lg"
       >
         {isOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
@@ -21,10 +21,10 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         initial={{ x: -300 }}
         animate={{ x: isOpen ? 0 : -300 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className={`fixed top-0 left-0 h-full w-72 bg-gray-900 text-white p-6 shadow-2xl z-40`}
+        className={`fixed border-r-2 border-gray-700 top-0 left-0 h-full w-72 bg-gray-900 text-white p-6 shadow-2xl z-40`}
       >
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl font-bold">Chat History</h2>
+          <h2 className="w-[100%] text-2xl font-bold text-right">History</h2>
         </div>
 
         <div className="space-y-4">
