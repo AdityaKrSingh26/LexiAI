@@ -11,14 +11,24 @@ app.use(express.static("public"))
 app.use(cookieParser())
 
 // import controllers
-import authRoutes from './routes/authRoutes.js';
-import chatRoutes from './routes/chatRoutes.js';
-import pdfRoutes from './routes/pdfRoutes.js';
+import userRoutes from './routes/user.routes.js';
+import chatRoutes from './routes/chat.routes.js';
+import pdfRoutes from './routes/pdf.routes.js';
 
 import errorHandler from './middleware/errorHandler.js';
 
+
+// Health check route
+app.get('/api/health', (req, res) => {
+    res.status(200).json({
+        status: 'ok',
+        message: 'Server is running',
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', userRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/pdfs', pdfRoutes);
 
