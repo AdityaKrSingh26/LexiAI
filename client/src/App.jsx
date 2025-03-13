@@ -14,7 +14,7 @@ function App() {
   const [inputMessage, setInputMessage] = useState('');
   const { messages, addMessage, isLoading } = useChatStore();
 
-  const flowchartImage = "https://unsplash.com/photos/golden-sunset-over-white-sand-dunes-Vnnlb1m78w4";
+  const flowchartImage = "https://via.placeholder.com/150";
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -37,9 +37,9 @@ function App() {
         <div className="container mx-auto px-4 py-8">
           <PDFUploader />
           
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-4xl mx-auto h-[100%]">
             {/* Chat Messages */}
-            <div className="bg-gray-800 rounded-lg p-4 mb-4 h-[50vh] overflow-y-auto">
+            <div className="bg-gray-800 rounded-lg p-4 mb-4 h-[100%] overflow-y-auto">
               {messages.map((msg, idx) => (
                 <ChatMessage
                   key={idx}
