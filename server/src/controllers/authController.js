@@ -1,9 +1,10 @@
-const User = require('../models/User');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
-const { validationResult } = require('express-validator');
+import User from '../models/User.js';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import { validationResult } from 'express-validator';
 
-exports.register = async (req, res) => {
+
+const register = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -21,7 +22,7 @@ exports.register = async (req, res) => {
     }
 };
 
-exports.login = async (req, res) => {
+const login = async (req, res) => {
     const { username, password } = req.body;
 
     try {
@@ -41,3 +42,8 @@ exports.login = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+
+export{
+    register,
+    login
+}

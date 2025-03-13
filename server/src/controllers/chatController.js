@@ -1,8 +1,8 @@
-const Chat = require('../models/Chat');
-const PDF = require('../models/PDF');
+import Chat from '../models/Chat.js';
+import PDF from '../models/PDF.js';
 
 // Save a new chat
-exports.saveChat = async (req, res) => {
+const saveChat = async (req, res) => {
     try {
         const { pdfId, userId, content } = req.body;
         const chat = new Chat({ pdfId, userId, content });
@@ -14,7 +14,7 @@ exports.saveChat = async (req, res) => {
 };
 
 // Retrieve chat history for a specific PDF
-exports.getChatHistory = async (req, res) => {
+const getChatHistory = async (req, res) => {
     try {
         const { pdfId } = req.params;
         const chats = await Chat.find({ pdfId }).populate('userId', 'username');
@@ -23,3 +23,8 @@ exports.getChatHistory = async (req, res) => {
         res.status(500).json({ message: 'Error retrieving chat history', error });
     }
 };
+
+export{
+    saveChat,
+    getChatHistory
+}

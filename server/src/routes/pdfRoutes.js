@@ -1,21 +1,37 @@
-const express = require('express');
+import express from 'express';
+import { authenticate } from '../middleware/auth.js';
+import {
+    upload,
+    uploadPDF,
+    getUserPDFs,
+    getPDFById,
+    deletePDF,
+    summarizePDF,
+    interactWithAI,
+    generateFlowchart
+} from '../controllers/pdfController.js';
+
 const router = express.Router();
-const pdfController = require('../controllers/pdfController');
-const authMiddleware = require('../middleware/auth');
 
 // Route to upload a PDF
-router.post('/upload', authMiddleware.authenticate, pdfController.uploadPDF);
-
-// Route to summarize a PDF
-router.post('/summarize/:pdfId', authMiddleware.authenticate, pdfController.summarizePDF);
-
-// Route to interact with the Gemini AI model
-router.post('/interact/:pdfId', authMiddleware.authenticate, pdfController.interactWithAI);
+router.post('/upload', authenticate, upload.single('pdf'), uploadPDF);
 
 // Route to get all PDFs for a user
-router.get('/', authMiddleware.authenticate, pdfController.getUserPDFs);
+router.get('/', authenticate, getUserPDFs);
 
 // Route to get a specific PDF by ID
-router.get('/:pdfId', authMiddleware.authenticate, pdfController.getPDFById);
+router.get('/:pdfId', authenticate, getPDFById);
 
-module.exports = router;
+// Route to delete a PDF
+router.delete('/:pdfId', authenticate, deletePDF);
+
+// Route to summarize a PDF
+router.post('/summarize/:pdfId', authenticate, summarizePDF);
+
+// Route to interact with the Gemini AI model
+router.post('/interact/:pdfId', authenticate, interactWithAI);
+
+// Route to generate flowchart from PDF
+router.post('/flowchart/:pdfId', authenticate, generateFlowchart);
+
+export default router;
