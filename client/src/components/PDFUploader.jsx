@@ -1,28 +1,43 @@
 import React, { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, X } from 'lucide-react';
-import useChatStore from '../store/chatStore';
+import { Upload, FileText, X, Loader } from 'lucide-react';
+import useChatStore from '../utils/chatStore';
 
 const PDFUploader = () => {
-  const { currentPdf, setPdf } = useChatStore();
+  const { currentPdf, uploadPDF, isUploading, uploadProgress } = useChatStore();
+  const user = JSON.parse(localStorage.getItem('user'));
 
-  const onDrop = useCallback((acceptedFiles) => {
+  const onDrop = useCallback(async (acceptedFiles) => {
     const file = acceptedFiles[0];
-    if (file?.type === 'application/pdf') {
-      setPdf({
-        file,
-        name: file.name,
-        size: (file.size / 1024 / 1024).toFixed(2), // Convert to MB
-        lastModified: new Date(file.lastModified).toLocaleDateString()
-      });
+    if (file?.type === 'application/pdf' && user) {
+      await uploadPDF(file, user.id);
     }
-  }, [setPdf]);
+  }, [uploadPDF, user]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: { 'application/pdf': ['.pdf'] },
-    multiple: false
+    multiple: false,
+    disabled: isUploading
   });
+
+  if (isUploading) {
+    return (
+      <div className="w-full max-w-2xl mx-auto mb-8">
+        <div className="border-2 border-gray-600 rounded-lg p-8 text-center">
+          <Loader className="mx-auto mb-4 animate-spin" size={32} />
+          <p className="text-lg mb-2">Uploading PDF...</p>
+          <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-blue-500 transition-all duration-300"
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
+          <p className="text-sm text-gray-400 mt-2">{uploadProgress}% complete</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-2xl mx-auto mb-8">
@@ -43,14 +58,14 @@ const PDFUploader = () => {
             <div className="flex items-center gap-3">
               <FileText size={24} className="text-blue-500" />
               <div>
-                <h3 className="font-medium">{currentPdf.name}</h3>
+                <h3 className="font-medium">{currentPdf.title || currentPdf.name}</h3>
                 <p className="text-sm text-gray-400">
-                  {currentPdf.size} MB • Last modified: {currentPdf.lastModified}
+                  Size: {(currentPdf.size / 1024 / 1024).toFixed(2)} MB
                 </p>
               </div>
             </div>
             <button
-              onClick={() => setPdf(null)}
+              onClick={() => useChatStore.getState().setCurrentPdf(null)}
               className="p-2 hover:bg-gray-700 rounded-full"
             >
               <X size={20} />

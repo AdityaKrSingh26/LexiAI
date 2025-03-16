@@ -20,6 +20,7 @@ import errorHandler from './middleware/errorHandler.js';
 
 // Health check route
 app.get('/api/health', (req, res) => {
+    console.log('Health check')
     res.status(200).json({
         status: 'ok',
         message: 'Server is running',

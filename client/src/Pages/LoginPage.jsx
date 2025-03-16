@@ -3,19 +3,53 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, Mail, Lock, User, ArrowRight } from 'lucide-react';
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+
 const AuthPage = () => {
     const navigate = useNavigate();
     const [isLogin, setIsLogin] = useState(true);
+    const [error, setError] = useState('');
     const [formData, setFormData] = useState({
         email: '',
         password: '',
-        name: ''
+        username: ''
     });
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log('Form submitted:', formData);
-        navigate('/chat');
+        setError('');
+
+        try {
+            const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
+            const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: formData.email,
+                    password: formData.password,
+                    username: formData.username
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Authentication failed');
+            }
+
+            // Store token in localStorage
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+
+            // Redirect to chat page
+            navigate('/chat');
+        } catch (error) {
+            console.error('Auth error:', error);
+            setError(error.message);
+            console.error('Auth error:', error);
+        }
     };
 
     const handleInputChange = (e) => {
@@ -42,6 +76,11 @@ const AuthPage = () => {
                     animate={{ height: 'auto' }}
                     className="bg-gray-800 rounded-2xl p-8 shadow-xl"
                 >
+                    {error && (
+                        <div className="mb-4 p-3 bg-red-500/10 border border-red-500 rounded-lg text-red-500">
+                            {error}
+                        </div>
+                    )}
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <AnimatePresence mode="wait">
                             {!isLogin && (
@@ -54,7 +93,7 @@ const AuthPage = () => {
                                     <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                     <input
                                         type="text"
-                                        name="name"
+                                        name="username"
                                         placeholder="Full Name"
                                         value={formData.name}
                                         onChange={handleInputChange}

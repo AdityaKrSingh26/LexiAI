@@ -1,7 +1,7 @@
 import React from 'react';
 import { Menu, X, MessageSquare, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
-import useChatStore from '../store/chatStore';
+import useChatStore from '../utils/chatStore';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
   const { chatHistory } = useChatStore();
