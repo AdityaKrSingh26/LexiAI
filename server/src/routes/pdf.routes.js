@@ -15,7 +15,7 @@ import authMiddleware from '../middleware/auth.js';
 const router = express.Router();
 
 // Protect all routes
-router.use(authMiddleware);
+// router.use(authMiddleware);
 
 router.post('/upload', uploadPDF, uploadPDFController);
 router.get('/', getAllPDFs);

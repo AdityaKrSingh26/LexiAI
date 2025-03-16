@@ -281,7 +281,7 @@ All endpoints can return the following error responses:
 }
 ```
 
-**Server Error (500)**
+**Server Error (500)** 
 ```json
 {
     "success": false,

@@ -8,8 +8,9 @@ const connection = async () => {
     try {
         await mongoose.connect(MONGODB_URL, {
             useNewUrlParser: true,
+            useUnifiedTopology: true, // Add this line
             serverSelectionTimeoutMS: 5000,
-            writeConcern: { w: 'majority' } 
+            writeConcern: { w: 'majority' }
         });
 
         console.log('Connected to MongoDB successfully');
@@ -18,5 +19,4 @@ const connection = async () => {
     }
 };
 
-// Remove deprecated `useCreateIndex` (no longer needed in Mongoose 6+)
 export default connection;

@@ -27,7 +27,7 @@ export const uploadPDF = async (req, res) => {
         }
 
         const pdf = await PDF.create({
-            user: req.user._id,
+            user: req.body.userId,
             title: req.body.title || req.file.originalname,
             originalFilename: req.file.originalname,
             url: result.url,
@@ -49,7 +49,9 @@ export const uploadPDF = async (req, res) => {
 // Get all PDFs for a user
 export const getAllPDFs = async (req, res) => {
     try {
-        const pdfs = await PDF.find({ user: req.user._id })
+        const userId = req.body.userId || req.user._id;
+
+        const pdfs = await PDF.find({ user: userId })
             .select('-textContent')
             .sort('-uploadedAt');
 
@@ -69,9 +71,11 @@ export const getAllPDFs = async (req, res) => {
 // Get PDF by ID
 export const getPDFById = async (req, res) => {
     try {
+        const userId = req.body.userId || req.user._id;
+
         const pdf = await PDF.findOne({
             _id: req.params.id,
-            user: req.user._id
+            user: userId
         }).populate('chats');
 
         if (!pdf) {
@@ -95,7 +99,7 @@ export const getPDFById = async (req, res) => {
 
 export const getUserPDFs = async (req, res) => {
     try {
-        const userId = req.params.userId || req.user._id;
+        const userId = req.body.userId || req.params.userId || req.user._id;
 
         // Check if user exists
         const user = await User.findById(userId);
