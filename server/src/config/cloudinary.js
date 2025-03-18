@@ -14,8 +14,9 @@ const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
         folder: 'pdfs',
-        resource_type: 'raw',
+        resource_type: 'image', // Change from 'raw' to 'image'
         allowed_formats: ['pdf'],
+        access_mode: 'public',
         public_id: (req, file) => `pdf-${Date.now()}-${file.originalname}`
     }
 });
@@ -61,9 +62,28 @@ const uploadPDFWithErrorHandling = (req, res, next) => {
 const uploadPDFToCloudinary = async (file) => {
     try {
         // Input validation
-        if (!file || !file.path) {
+        if (!file) {
             console.error('Invalid file object provided to uploadPDFToCloudinary');
-            throw new Error('Invalid file: file object or path is missing');
+            throw new Error('Invalid file: file object is missing');
+        }
+
+        // When using CloudinaryStorage with multer, the file is already uploaded
+        // and we just need to return the result instead of uploading again
+        if (file.path && file.path.includes('cloudinary')) {
+            console.log(`File already uploaded to Cloudinary: ${file.path}`);
+            return {
+                success: true,
+                url: file.path,
+                public_id: file.filename || `pdf-${Date.now()}-${file.originalname}`,
+                format: 'pdf',
+                created_at: new Date().toISOString()
+            };
+        }
+
+        // If we have a local file path (not a Cloudinary URL), continue with upload
+        if (!file.path) {
+            console.error('Invalid file object provided to uploadPDFToCloudinary');
+            throw new Error('Invalid file: file path is missing');
         }
 
         // Verify credentials are set
@@ -76,13 +96,12 @@ const uploadPDFToCloudinary = async (file) => {
 
         // Upload with detailed options
         const result = await cloudinary.uploader.upload(file.path, {
-            resource_type: 'raw',
-            folder: 'pdfs',
-            access_mode: 'public',
-            unique_filename: true,
+            resource_type: "image", // Change from "raw" to "image"
+            folder: "pdfs",
             use_filename: true,
-            overwrite: false,
-            invalidate: true
+            unique_filename: false,
+            access_mode: "public",
+            type: "upload"
         });
 
         // Verify upload result

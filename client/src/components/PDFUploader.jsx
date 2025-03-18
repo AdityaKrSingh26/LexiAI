@@ -1,11 +1,24 @@
 import React, { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, X, Loader } from 'lucide-react';
+import { Upload, FileText, X, Loader, Eye } from 'lucide-react';
 import useChatStore from '../utils/chatStore';
 
 const PDFUploader = () => {
-  const { currentPdf, uploadPDF, isUploading, uploadProgress } = useChatStore();
+  const {
+    currentPdf,
+    uploadPDF,
+    isUploading,
+    uploadProgress
+  } = useChatStore();
+
   const user = JSON.parse(localStorage.getItem('user'));
+
+  const shortenFileName = (fileName, maxLength = 30) => {
+    if (fileName.length <= maxLength) return fileName;
+    const extension = fileName.split('.').pop();
+    const name = fileName.substring(0, maxLength - extension.length - 3);
+    return `${name}...${extension}`;
+  };
 
   const onDrop = useCallback(async (acceptedFiles) => {
     const file = acceptedFiles[0];
@@ -14,7 +27,11 @@ const PDFUploader = () => {
     }
   }, [uploadPDF, user]);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const {
+    getRootProps,
+    getInputProps,
+    isDragActive
+  } = useDropzone({
     onDrop,
     accept: { 'application/pdf': ['.pdf'] },
     multiple: false,
@@ -53,27 +70,38 @@ const PDFUploader = () => {
           <p className="text-sm text-gray-400">Only PDF files are supported</p>
         </div>
       ) : (
-        <div className="bg-gray-800 rounded-lg p-4">
+        <div className=" w-[100%]">
+          <div className="mb-4">
+            <embed
+              src={currentPdf.url}
+              type="application/pdf"
+              width="100%"
+              height="400"
+            />
+          </div>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <FileText size={24} className="text-blue-500" />
-              <div>
-                <h3 className="font-medium">{currentPdf.title || currentPdf.name}</h3>
-                <p className="text-sm text-gray-400">
-                  Size: {(currentPdf.size / 1024 / 1024).toFixed(2)} MB
-                </p>
+            <div className="w-[100%] flex items-center gap-3 justify-end">
+              <div className="flex items-center gap-3 bg-gray-800 rounded-lg p-4">
+                <FileText
+                  size={30}
+                  className="text-blue-500 cursor-pointer"
+                  onClick={() => window.open(currentPdf.url, '_blank')}
+                />
+                <div className="max-w-[calc(100%-80px)] overflow-hidden">
+                  <h3 className="font-medium truncate">
+                    {shortenFileName(currentPdf.title || currentPdf.name)}
+                  </h3>
+                  {/* <p className="text-sm text-gray-400">
+                Size: {(currentPdf.size / 1024 / 1024).toFixed(2)} MB
+              </p> */}
+                </div>
               </div>
             </div>
-            <button
-              onClick={() => useChatStore.getState().setCurrentPdf(null)}
-              className="p-2 hover:bg-gray-700 rounded-full"
-            >
-              <X size={20} />
-            </button>
           </div>
         </div>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 };
 

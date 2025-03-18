@@ -3,12 +3,13 @@ import PDF from '../models/pdf.model.js';
 import User from '../models/user.model.js';
 import Chat from '../models/chat.model.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import pdfParse from 'pdf-parse';
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-// Upload PDF
+// Upload PDF - working
 export const uploadPDF = async (req, res) => {
     console.log("[uploadPDF] Starting PDF upload process");
     try {
@@ -33,7 +34,34 @@ export const uploadPDF = async (req, res) => {
                 message: result.error
             });
         }
+        console.log("[uploadPDF] Parsing PDF content");
+        let pdfContent = '';
+        try {
+            // Download the PDF from Cloudinary since we have the URL
+            console.log("[uploadPDF] Downloading PDF from Cloudinary");
 
+            // Use secure_url if available, otherwise use the regular URL
+            const downloadUrl = result.secure_url || result.url;
+            console.log("[uploadPDF] Download URL:", downloadUrl);
+
+            // Remove authentication headers - public resources don't need them
+            const response = await fetch(downloadUrl);
+
+            if (!response.ok) {
+                throw new Error(`Failed to download PDF: ${response.status} ${response.statusText}`);
+            }
+
+            const arrayBuffer = await response.arrayBuffer();
+            const pdfBuffer = Buffer.from(arrayBuffer);
+            console.log("[uploadPDF] PDF downloaded successfully, parsing content");
+
+            const pdfData = await pdfParse(pdfBuffer);
+            pdfContent = pdfData.text;
+            console.log("[uploadPDF] PDF parsed successfully, extracted", pdfContent.length, "characters");
+        } catch (parseError) {
+            console.error("[uploadPDF] Error parsing PDF:", parseError);
+            pdfContent = "Failed to extract text from PDF.";
+        }
         // Create PDF document
         console.log("[uploadPDF] Creating PDF document in database");
         const pdf = await PDF.create({
@@ -41,8 +69,12 @@ export const uploadPDF = async (req, res) => {
             title: req.body.title || req.file.originalname,
             originalFilename: req.file.originalname,
             url: result.url,
-            textContent: req.body.textContent || ''
+            textContent: pdfContent
         });
+
+        // Return response without the textContent field
+        const responseData = pdf.toObject();
+        delete responseData.textContent;
 
         console.log("[uploadPDF] PDF document created successfully:", {
             id: pdf._id,
@@ -52,7 +84,7 @@ export const uploadPDF = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            data: pdf
+            data: responseData
         });
     } catch (error) {
         console.error("[uploadPDF] Unexpected error:", {
@@ -386,7 +418,9 @@ export const askQuestion = async (req, res) => {
             });
         }
 
-        if (!req.user?._id) {
+        const { question, userId } = req.body;
+        console.log(userId)
+        if (!userId) {
             console.error("[askQuestion] No user ID available");
             return res.status(401).json({
                 success: false,
@@ -394,7 +428,7 @@ export const askQuestion = async (req, res) => {
             });
         }
 
-        const { question } = req.body;
+
         if (!question || question.trim() === '') {
             console.error("[askQuestion] No question provided in request body");
             return res.status(400).json({
@@ -403,14 +437,14 @@ export const askQuestion = async (req, res) => {
             });
         }
 
-        console.log(`[askQuestion] Finding PDF with ID ${req.params.id} for user ${req.user._id}`);
+        console.log(`[askQuestion] Finding PDF with ID ${req.params.id} for user ${userId}`);
         const pdf = await PDF.findOne({
             _id: req.params.id,
-            user: req.user._id
+            user: userId
         }).select('+textContent');
 
         if (!pdf) {
-            console.error(`[askQuestion] PDF not found with ID ${req.params.id} for user ${req.user._id}`);
+            console.error(`[askQuestion] PDF not found with ID ${req.params.id} for user ${userId}`);
             return res.status(404).json({
                 success: false,
                 message: 'PDF not found'
@@ -439,7 +473,7 @@ export const askQuestion = async (req, res) => {
             console.log(`[askQuestion] Saving chat for PDF: ${pdf._id}`);
             const chat = await Chat.create({
                 pdfId: pdf._id,
-                userId: req.user._id,
+                userId: userId,
                 question,
                 response
             });

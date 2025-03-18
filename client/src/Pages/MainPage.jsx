@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { GitBranch as FlowChart } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
@@ -21,11 +21,24 @@ function App() {
         askQuestion: sendQuestion
     } = useChatStore();
 
+    // Get userId from localStorage when component mounts
+    const [userId, setUserId] = useState(null);
+
+    useEffect(() => {
+        const storedUser = localStorage.getItem('user');
+        const storedUserId = storedUser ? JSON.parse(storedUser).id : null;
+        console.log(storedUserId);
+        if (storedUserId) {
+            setUserId(storedUserId);
+        }
+    }, []);
+    
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!inputMessage.trim() || !currentPdf || isUploading) return;
+        if (!inputMessage.trim() || !currentPdf || isUploading || !userId) return;
 
-        await sendQuestion(inputMessage);
+        await sendQuestion(inputMessage, userId);
         setInputMessage('');
     };
 
@@ -39,7 +52,7 @@ function App() {
 
                     <div className="max-w-4xl mx-auto">
                         {/* Chat Messages */}
-                        <div className="bg-gray-800 rounded-lg p-4 mb-4 min-h-[400px] max-h-[600px] overflow-y-auto">
+                        <div className=" rounded-lg p-4 mb-10">
                             {messages.map((msg, idx) => (
                                 <ChatMessage
                                     key={idx}
@@ -62,23 +75,27 @@ function App() {
                         </div>
 
                         {/* Chat Input */}
-                        <form onSubmit={handleSubmit} className="flex gap-2">
-                            <input
-                                type="text"
-                                value={inputMessage}
-                                onChange={(e) => setInputMessage(e.target.value)}
-                                placeholder={currentPdf ? "Ask a question about your PDF..." : "Upload a PDF to start chatting"}
-                                className="flex-1 bg-gray-800 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                disabled={!currentPdf || isUploading}
-                            />
-                            <button
-                                type="submit"
-                                disabled={!currentPdf || isUploading}
-                                className="bg-blue-600 px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Send
-                            </button>
-                        </form>
+                        <div className="fixed bottom-10 left-10 right-10 bg-gray-900 px-4 border-t border-gray-800">
+                            <div className="max-w-4xl mx-auto">
+                                <form onSubmit={handleSubmit} className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={inputMessage}
+                                        onChange={(e) => setInputMessage(e.target.value)}
+                                        placeholder={currentPdf ? "Ask a question about your PDF..." : "Upload a PDF to start chatting"}
+                                        className="flex-1 bg-gray-800 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        disabled={!currentPdf || isUploading}
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={!currentPdf || isUploading}
+                                        className="bg-blue-600 px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Send
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </main>

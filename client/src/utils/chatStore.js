@@ -12,7 +12,7 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
-    config.headers.Authorization = token;
+    config.headers.Authorization = `Bearer ${token}`; // Add 'Bearer ' prefix
   }
   return config;
 });
@@ -83,7 +83,7 @@ const useChatStore = create((set, get) => ({
     }
   },
 
-  askQuestion: async (question) => {
+  askQuestion: async (question,userId) => {
     const { currentPdf } = get();
     if (!currentPdf) return;
 
@@ -93,7 +93,7 @@ const useChatStore = create((set, get) => ({
         messages: [...state.messages, { type: 'user', content: question }]
       }));
 
-      const { data } = await api.post(`/api/pdfs/${currentPdf._id}/ask`, { question });
+      const { data } = await api.post(`/api/pdfs/${currentPdf._id}/ask`, { question,userId });
 
       set(state => ({
         messages: [...state.messages, { type: 'bot', content: data.data.response }]
