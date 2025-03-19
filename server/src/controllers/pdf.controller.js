@@ -9,7 +9,7 @@ import pdfParse from 'pdf-parse';
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-// Upload PDF - working
+// Upload PDF - working ========================
 export const uploadPDF = async (req, res) => {
     console.log("[uploadPDF] Starting PDF upload process");
     try {
@@ -101,7 +101,7 @@ export const uploadPDF = async (req, res) => {
     }
 };
 
-// Get all PDFs for a user
+// Get all PDFs for a user - working ========================
 export const getAllPDFs = async (req, res) => {
     console.log("[getAllPDFs] Fetching all PDFs for user");
     try {
@@ -237,7 +237,8 @@ export const getUserPDFs = async (req, res) => {
             count: pdfs.length,
             data: pdfs.map(pdf => ({
                 ...pdf.toObject(),
-                chatCount: pdf.chats.length
+                chatCount: pdf.chats.length,
+                createdAt: pdf.createdAt // Make sure createdAt is included
             }))
         });
     } catch (error) {
@@ -267,8 +268,8 @@ export const deletePDF = async (req, res) => {
                 message: 'PDF ID is required'
             });
         }
-
-        if (!req.user?._id) {
+        const {userId} = req.body;
+        if (!userId) {
             console.error("[deletePDF] No user ID available");
             return res.status(401).json({
                 success: false,
@@ -276,14 +277,14 @@ export const deletePDF = async (req, res) => {
             });
         }
 
-        console.log(`[deletePDF] Finding PDF with ID ${req.params.id} for user ${req.user._id}`);
+        console.log(`[deletePDF] Finding PDF with ID ${req.params.id} for user ${userId}`);
         const pdf = await PDF.findOneAndDelete({
             _id: req.params.id,
-            user: req.user._id
+            user: userId
         });
 
         if (!pdf) {
-            console.error(`[deletePDF] PDF not found with ID ${req.params.id} for user ${req.user._id}`);
+            console.error(`[deletePDF] PDF not found with ID ${req.params.id} for user ${userId}`);
             return res.status(404).json({
                 success: false,
                 message: 'PDF not found'
@@ -406,7 +407,7 @@ export const summarizePDF = async (req, res) => {
     }
 };
 
-// Ask question about PDF
+// Ask question about PDF - working ========================
 export const askQuestion = async (req, res) => {
     console.log("[askQuestion] Processing question for PDF:", req.params.id);
     try {

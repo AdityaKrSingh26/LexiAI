@@ -32,7 +32,7 @@ function App() {
             setUserId(storedUserId);
         }
     }, []);
-    
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -44,7 +44,7 @@ function App() {
 
     return (
         <div className="min-h-screen bg-gray-900 text-white">
-            {/* <Sidebar isOpen={isSidebarOpen} toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} /> */}
+            <Sidebar isOpen={isSidebarOpen} toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} userId={userId} />
 
             <main className={`min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-72' : ''}`}>
                 <div className="container mx-auto px-4 py-8">

@@ -170,7 +170,8 @@ export const getPDFChats = async (req, res) => {
             });
         }
 
-        if (!req.user?._id) {
+        const userId = req.query.userId; // Changed from req.body to req.query
+        if (!userId) {
             console.error("[getPDFChats] No user ID available");
             return res.status(401).json({
                 success: false,
@@ -178,14 +179,14 @@ export const getPDFChats = async (req, res) => {
             });
         }
 
-        console.log(`[getPDFChats] Verifying PDF ownership for user: ${req.user._id}`);
+        console.log(`[getPDFChats] Verifying PDF ownership for user: ${userId}`);
         const pdf = await PDF.findOne({
             _id: req.params.pdfId,
-            user: req.user._id
+            user: userId
         });
 
         if (!pdf) {
-            console.error(`[getPDFChats] PDF not found with ID: ${req.params.pdfId} for user: ${req.user._id}`);
+            console.error(`[getPDFChats] PDF not found with ID: ${req.params.pdfId} for user: ${userId}`);
             return res.status(404).json({
                 success: false,
                 message: 'PDF not found'
@@ -204,14 +205,7 @@ export const getPDFChats = async (req, res) => {
             data: chats
         });
     } catch (error) {
-        console.error("[getPDFChats] Error fetching chats:", {
-            pdfId: req.params.pdfId,
-            userId: req.user?._id,
-            message: error.message,
-            stack: error.stack,
-            name: error.name
-        });
-
+        console.error("[getPDFChats] Error fetching chats:", error);
         res.status(500).json({
             success: false,
             message: 'Error fetching chats',
