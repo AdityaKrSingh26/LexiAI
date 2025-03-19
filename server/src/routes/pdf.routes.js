@@ -7,7 +7,9 @@ import {
     summarizePDF,
     askQuestion,
     generatePDFFlow,
-    getUserPDFs
+    getUserPDFs,
+    updateNotes,
+    getNotes
 } from '../controllers/pdf.controller.js';
 import authMiddleware from '../middleware/auth.js';
 
@@ -23,5 +25,8 @@ router.delete('/:id', deletePDF);
 router.post('/:id/summarize', summarizePDF);
 router.post('/:id/ask', askQuestion);
 router.get('/:id/flow', generatePDFFlow);
+// notes route
+router.put('/:id/notes', updateNotes);
+router.get('/:id/notes', getNotes);
 
 export default router;

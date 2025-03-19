@@ -1,17 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { GitBranch as FlowChart } from 'lucide-react';
+import {
+    GitBranch as FlowChart,
+    BookOpen
+} from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import ChatMessage from '../components/ChatMessage';
 import PDFUploader from '../components/PDFUploader';
 import FlowchartPopup from '../components/FlowchartPopup';
+import NotesPopup from '../components/NotesPopup';
+
 import useChatStore from '../utils/chatStore';
 
 const flowchartImage = '/flowchart.png';
 
+const mermaidCode = "graph TD\n  A[Client] -->|Request| B(Gateway)\n  B --> C[Server]\n  C -->|Response| B\n  B --> D[Database]";
+
+
 function App() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isFlowchartOpen, setIsFlowchartOpen] = useState(false);
+    const [isNotesOpen, setIsNotesOpen] = useState(false);
     const [inputMessage, setInputMessage] = useState('');
     const {
         messages,
@@ -27,7 +36,6 @@ function App() {
     useEffect(() => {
         const storedUser = localStorage.getItem('user');
         const storedUserId = storedUser ? JSON.parse(storedUser).id : null;
-        console.log(storedUserId);
         if (storedUserId) {
             setUserId(storedUserId);
         }
@@ -100,20 +108,46 @@ function App() {
                 </div>
             </main>
 
-            {/* Floating Flowchart Button */}
-            <button
-                onClick={() => setIsFlowchartOpen(true)}
-                className="fixed bottom-6 right-6 bg-blue-600 p-4 rounded-full shadow-lg hover:bg-blue-700 transition-colors z-20"
-                aria-label="Show document flowchart"
-            >
-                <FlowChart size={24} />
-            </button>
+            {/* Floating Buttons Container */}
+            <div className="fixed bottom-24 right-6 flex flex-col gap-4 z-20">
+                {/* Notes Button */}
+                <button
+                    onClick={() => setIsNotesOpen(true)}
+                    className={`p-4 rounded-full shadow-lg transition-colors ${currentPdf
+                        ? 'bg-purple-600 hover:bg-purple-700'
+                        : 'bg-gray-600 cursor-not-allowed opacity-50'
+                        }`}
+                    aria-label="Open notes"
+                    disabled={!currentPdf}
+                >
+                    <BookOpen size={24} />
+                </button>
+
+                {/* Flowchart Button */}
+                {/* <button
+                    onClick={() => setIsFlowchartOpen(true)}
+                    className={`p-4 rounded-full shadow-lg transition-colors ${currentPdf
+                        ? 'bg-blue-600 hover:bg-blue-700'
+                        : 'bg-gray-600 cursor-not-allowed opacity-50'
+                        }`}
+                    aria-label="Show document flowchart"
+                    disabled={!currentPdf}
+                >
+                    <FlowChart size={24} />
+                </button> */}
+            </div>
 
             {/* Flowchart Popup */}
-            <FlowchartPopup
+            {/* <FlowchartPopup
                 isOpen={isFlowchartOpen}
                 onClose={() => setIsFlowchartOpen(false)}
-                flowchartImage={flowchartImage}
+                mermaidCode={mermaidCode}
+            /> */}
+
+            <NotesPopup
+                isOpen={isNotesOpen}
+                onClose={() => setIsNotesOpen(false)}
+                currentPdf={currentPdf}
             />
         </div>
     );

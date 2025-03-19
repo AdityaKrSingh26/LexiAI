@@ -35,6 +35,11 @@ const PDFSchema = new mongoose.Schema(
             default: Date.now,
             index: true
         },
+        notes: {
+            type: String,
+            default: '',
+            trim: true
+        },
         chats: [{
             type: mongoose.Schema.Types.ObjectId,
             ref: "Chat"

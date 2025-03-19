@@ -193,6 +193,48 @@ const useChatStore = create((set, get) => ({
     }
   },
 
+  updateNotes: async (pdfId, notes) => {
+    try {
+      const storedUser = localStorage.getItem('user');
+      const userId = storedUser ? JSON.parse(storedUser).id : null;
+
+      if (!userId || !pdfId) return;
+
+      const { data } = await api.put(`/api/pdfs/${pdfId}/notes`, {
+        notes,
+        userId
+      });
+
+      if (data.success) {
+        set(state => ({
+          pdfs: state.pdfs.map(pdf =>
+            pdf._id === pdfId ? { ...pdf, notes: data.data.notes } : pdf
+          )
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to update notes:', error);
+    }
+  },
+
+  getNotes: async (pdfId) => {
+    try {
+      const storedUser = localStorage.getItem('user');
+      const userId = storedUser ? JSON.parse(storedUser).id : null;
+
+      if (!userId || !pdfId) return null;
+
+      const { data } = await api.get(`/api/pdfs/${pdfId}/notes`, {
+        params: { userId } // Changed from data to params
+      });
+
+      return data.success ? data.data.notes : null;
+    } catch (error) {
+      console.error('Failed to fetch notes:', error);
+      return null;
+    }
+  },
+
   generateFlow: async (pdfId) => {
     try {
       set({ isLoading: true });

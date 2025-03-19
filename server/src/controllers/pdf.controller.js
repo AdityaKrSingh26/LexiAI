@@ -564,3 +564,124 @@ export const generatePDFFlow = async (req, res) => {
         });
     }
 };
+
+export const updateNotes = async (req, res) => {
+    console.log("[updateNotes] Updating notes for PDF:", req.params.id);
+    try {
+        const { notes } = req.body;
+        const { userId } = req.body;
+
+        if (!req.params.id) {
+            console.error("[updateNotes] No PDF ID provided");
+            return res.status(400).json({
+                success: false,
+                message: 'PDF ID is required'
+            });
+        }
+
+        if (!userId) {
+            console.error("[updateNotes] No user ID available");
+            return res.status(401).json({
+                success: false,
+                message: 'User authentication required'
+            });
+        }
+
+        console.log(`[updateNotes] Finding PDF with ID ${req.params.id} for user ${userId}`);
+        const pdf = await PDF.findOne({
+            _id: req.params.id,
+            user: userId
+        });
+
+        if (!pdf) {
+            console.error(`[updateNotes] PDF not found with ID ${req.params.id} for user ${userId}`);
+            return res.status(404).json({
+                success: false,
+                message: 'PDF not found'
+            });
+        }
+
+        pdf.notes = notes;
+        await pdf.save();
+
+        console.log(`[updateNotes] Successfully updated notes for PDF: ${pdf._id}`);
+        res.status(200).json({
+            success: true,
+            data: {
+                notes: pdf.notes
+            }
+        });
+    } catch (error) {
+        console.error("[updateNotes] Error updating notes:", {
+            id: req.params.id,
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+        });
+
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update notes',
+            error: error.message
+        });
+    }
+};
+
+// Get PDF notes
+export const getNotes = async (req, res) => {
+    console.log("[getNotes] Fetching notes for PDF:", req.params.id);
+    try {
+        const userId = req.query.userId || req.body.userId; // Check both query and body
+
+        if (!req.params.id) {
+            console.error("[getNotes] No PDF ID provided");
+            return res.status(400).json({
+                success: false,
+                message: 'PDF ID is required'
+            });
+        }
+
+        if (!userId) {
+            console.error("[getNotes] No user ID available");
+            return res.status(401).json({
+                success: false,
+                message: 'User authentication required'
+            });
+        }
+
+        console.log(`[getNotes] Finding PDF with ID ${req.params.id} for user ${userId}`);
+        const pdf = await PDF.findOne({
+            _id: req.params.id,
+            user: userId
+        });
+
+        if (!pdf) {
+            console.error(`[getNotes] PDF not found with ID ${req.params.id} for user ${userId}`);
+            return res.status(404).json({
+                success: false,
+                message: 'PDF not found'
+            });
+        }
+
+        console.log(`[getNotes] Successfully retrieved notes for PDF: ${pdf._id}`);
+        res.status(200).json({
+            success: true,
+            data: {
+                notes: pdf.notes
+            }
+        });
+    } catch (error) {
+        console.error("[getNotes] Error fetching notes:", {
+            id: req.params.id,
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+        });
+
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch notes',
+            error: error.message
+        });
+    }
+};
