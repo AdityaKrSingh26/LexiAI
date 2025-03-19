@@ -2,11 +2,11 @@
   "name": "pdf-chat-backend",
   "version": "1.0.0",
   "description": "Backend for PDF chat application using Gemini AI model.",
-  "main": "server.js",
+  "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
+    "start": "node index.js",
+    "dev": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
