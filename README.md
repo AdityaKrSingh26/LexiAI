@@ -4,11 +4,11 @@ LexiAI is an intelligent PDF assistant that enables users to query documents, ge
 
 ## Features  
 
-🔹 **AI-Powered Document Querying** – Ask questions directly within PDFs and receive precise, context-aware responses using **Gemini AI**.  
-🔹 **Smart Summarization** – Get concise summaries of lengthy documents, accelerating content understanding.  
-🔹 **Intelligent Note-Taking** – Create, Organize, annotate, and retrieve notes efficiently, improving research productivity.  
+**AI-Powered Document Querying** – Ask questions directly within PDFs and receive precise, context-aware responses using **Gemini AI**.  
+**Smart Summarization** – Get concise summaries of lengthy documents, accelerating content understanding.  
+**Intelligent Note-Taking** – Create, Organize, annotate, and retrieve notes efficiently, improving research productivity.  
 <!---
-🔹 **Flowchart Generation** – Automatically create structured flowcharts for complex topics, enhancing comprehension. 
+**Flowchart Generation** – Automatically create structured flowcharts for complex topics, enhancing comprehension. 
 -->
 
 ## Tech Stack  
@@ -46,7 +46,7 @@ npm install
 npm start
 ```
 
-### 🎨 Frontend Setup  
+### Frontend Setup  
 
 ```sh
 cd client
@@ -54,9 +54,9 @@ npm install
 npm run dev
 ```
 
-## 🎯 Usage  
+## Usage  
 
 1. Upload a PDF to the platform.  
 2. Query the document for AI-generated answers.  
-3. Generate summaries and structured flowcharts.  
+3. Generate summaries.  
 4. Take intelligent notes and retrieve them easily.  
