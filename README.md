@@ -1,298 +1,62 @@
-# LexiAI API Documentation
+# LexiAI – AI-Powered PDF Assistant  
 
-## Table of Contents
-- [Authentication](#authentication)
-- [PDF Management](#pdf-management)
-- [Chat Management](#chat-management)
+LexiAI is an intelligent PDF assistant that enables users to query documents, generate summaries, and create structured notes with AI-powered flowchart visualizations. Built with modern technologies like **React.js, Express.js, TailwindCSS, MongoDB, Gemini AI, and Cloudinary**, LexiAI enhances document interaction, making research and study more efficient.  
 
-## Authentication
+## Features  
 
-### Register User
-```http
-POST /api/auth/register
-```
-**Request Body:**
-```json
-{
-    "username": "string",
-    "email": "string",
-    "password": "string"
-}
-```
-**Success Response: (201)**
-```json
-{
-    "success": true,
-    "token": "JWT_TOKEN",
-    "user": {
-        "id": "string",
-        "username": "string",
-        "email": "string"
-    }
-}
-```
+🔹 **AI-Powered Document Querying** – Ask questions directly within PDFs and receive precise, context-aware responses using **Gemini AI**.  
+🔹 **Smart Summarization** – Get concise summaries of lengthy documents, accelerating content understanding.  
+🔹 **Intelligent Note-Taking** – Create, Organize, annotate, and retrieve notes efficiently, improving research productivity.  
+<!---
+🔹 **Flowchart Generation** – Automatically create structured flowcharts for complex topics, enhancing comprehension. 
+-->
 
-### Login
-```http
-POST /api/auth/login
-```
-**Request Body:**
-```json
-{
-    "email": "string",
-    "password": "string"
-}
-```
-**Success Response: (200)**
-```json
-{
-    "success": true,
-    "token": "JWT_TOKEN",
-    "user": {
-        "id": "string",
-        "username": "string",
-        "email": "string"
-    }
-}
+## Tech Stack  
+
+- **Frontend**: React.js, TailwindCSS  
+- **Backend**: Express.js, Node.js  
+- **Database**: MongoDB  
+- **AI Integration**: Gemini AI  
+- **Cloud Storage**: Cloudinary  
+
+## Screenshots  
+![image](https://github.com/user-attachments/assets/68dabd76-3487-4663-8c86-725130151ab9)
+![image](https://github.com/user-attachments/assets/a2ac34fc-f5bc-4cc9-9efa-98d9b4b254c1)
+![image](https://github.com/user-attachments/assets/ccc8a06d-ce13-432a-9912-aa5edc9202d1)
+![image](https://github.com/user-attachments/assets/080abdc2-8a9d-4171-ac7d-2a814b5171b9)
+![image](https://github.com/user-attachments/assets/c33e7d4f-a4f4-447c-86cf-65195ac99783)
+
+
+
+
+(Include images of the UI here)  
+
+## Installation  
+
+```sh
+git clone https://github.com/AdityaKrSingh26/LexiAI.git
+cd LexiAI
 ```
 
-### Logout
-```http
-POST /api/auth/logout
-```
-**Success Response: (200)**
-```json
-{
-    "success": true,
-    "message": "Logged out successfully"
-}
+### Backend Setup  
+
+```sh
+cd server
+npm install
+npm start
 ```
 
-## PDF Management
+### 🎨 Frontend Setup  
 
-### Upload PDF
-```http
-POST /api/pdfs/upload
-```
-**Request Body:**
-```form-data
-file: [PDF File]
-title: string (optional)
-textContent: string
-```
-**Success Response: (201)**
-```json
-{
-    "success": true,
-    "data": {
-        "id": "string",
-        "title": "string",
-        "url": "string",
-        "user": "string",
-        "uploadedAt": "date"
-    }
-}
+```sh
+cd client
+npm install
+npm run dev
 ```
 
-### Get All PDFs
-```http
-GET /api/pdfs
-```
-**Success Response: (200)**
-```json
-{
-    "success": true,
-    "count": "number",
-    "data": [{
-        "id": "string",
-        "title": "string",
-        "url": "string",
-        "uploadedAt": "date"
-    }]
-}
-```
+## 🎯 Usage  
 
-### Get PDF by ID
-```http
-GET /api/pdfs/:id
-```
-**Success Response: (200)**
-```json
-{
-    "success": true,
-    "data": {
-        "id": "string",
-        "title": "string",
-        "url": "string",
-        "chats": ["array of chat objects"]
-    }
-}
-```
-
-### Get User PDFs
-```http
-GET /api/pdfs/:userId/pdfs
-```
-**Success Response: (200)**
-```json
-{
-    "success": true,
-    "count": "number",
-    "data": [{
-        "id": "string",
-        "title": "string",
-        "url": "string",
-        "chatCount": "number"
-    }]
-}
-```
-
-### Summarize PDF
-```http
-POST /api/pdfs/:id/summarize
-```
-**Success Response: (200)**
-```json
-{
-    "success": true,
-    "data": {
-        "summary": "string"
-    }
-}
-```
-
-### Ask Question About PDF
-```http
-POST /api/pdfs/:id/ask
-```
-**Request Body:**
-```json
-{
-    "question": "string"
-}
-```
-**Success Response: (200)**
-```json
-{
-    "success": true,
-    "data": {
-        "question": "string",
-        "response": "string",
-        "createdAt": "date"
-    }
-}
-```
-
-### Generate PDF Flow
-```http
-GET /api/pdfs/:id/flow
-```
-**Success Response: (200)**
-```json
-{
-    "success": true,
-    "data": {
-        "flow": "string"
-    }
-}
-```
-
-### Delete PDF
-```http
-DELETE /api/pdfs/:id
-```
-**Success Response: (200)**
-```json
-{
-    "success": true,
-    "message": "PDF deleted successfully"
-}
-```
-
-## Chat Management
-
-### Ask Question in Chat
-```http
-POST /api/chats/:pdfId/question
-```
-**Request Body:**
-```json
-{
-    "question": "string"
-}
-```
-**Success Response: (200)**
-```json
-{
-    "success": true,
-    "data": {
-        "question": "string",
-        "response": "string",
-        "createdAt": "date"
-    }
-}
-```
-
-### Get PDF Chats
-```http
-GET /api/chats/:pdfId/chats
-```
-**Success Response: (200)**
-```json
-{
-    "success": true,
-    "count": "number",
-    "data": [{
-        "question": "string",
-        "response": "string",
-        "createdAt": "date"
-    }]
-}
-```
-
-### Delete Chat
-```http
-DELETE /api/chats/chats/:chatId
-```
-**Success Response: (200)**
-```json
-{
-    "success": true,
-    "message": "Chat deleted successfully"
-}
-```
-
-## Error Responses
-All endpoints can return the following error responses:
-
-**Authentication Error (401)**
-```json
-{
-    "success": false,
-    "message": "Not authorized"
-}
-```
-
-**Validation Error (400)**
-```json
-{
-    "success": false,
-    "message": "Error message"
-}
-```
-
-**Server Error (500)** 
-```json
-{
-    "success": false,
-    "message": "Error message",
-    "error": "Detailed error message"
-}
-```
-
-## Authentication
-All endpoints except `/api/auth/register` and `/api/auth/login` require authentication.
-Add the JWT token to the Authorization header:
-```http
-Authorization: Bearer <JWT_TOKEN>
-```
+1. Upload a PDF to the platform.  
+2. Query the document for AI-generated answers.  
+3. Generate summaries and structured flowcharts.  
+4. Take intelligent notes and retrieve them easily.  
