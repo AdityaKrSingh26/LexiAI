@@ -7,6 +7,7 @@ import {
   Trash2,
   Calendar,
   PlusCircle,
+  LogOut,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import useChatStore from '../utils/chatStore';
@@ -32,6 +33,16 @@ const Sidebar = ({ isOpen, toggleSidebar, userId }) => {
 
   const handlePDFClick = (pdf) => {
     setCurrentPdf(pdf);
+  };
+
+  const handleLogout = async () => {
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
   };
 
   const handleDeletePDF = async (e, pdfId) => {
@@ -123,6 +134,16 @@ const Sidebar = ({ isOpen, toggleSidebar, userId }) => {
               No documents found
             </div>
           )}
+        </div>
+
+        <div className="absolute bottom-6 left-6 right-6">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition-colors"
+          >
+            <LogOut size={20} />
+            <span>Logout</span>
+          </button>
         </div>
       </motion.div>
     </>

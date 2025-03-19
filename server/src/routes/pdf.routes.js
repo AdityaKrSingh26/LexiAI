@@ -2,7 +2,6 @@ import express from 'express';
 import { uploadPDF } from '../config/cloudinary.js';
 import {
     uploadPDF as uploadPDFController,
-    getAllPDFs,
     getPDFById,
     deletePDF,
     summarizePDF,
@@ -18,7 +17,6 @@ const router = express.Router();
 // router.use(authMiddleware);
 
 router.post('/upload', uploadPDF, uploadPDFController);
-router.get('/', getAllPDFs);
 router.get('/:id', getPDFById);
 router.get('/:userId/pdfs', getUserPDFs);
 router.delete('/:id', deletePDF);

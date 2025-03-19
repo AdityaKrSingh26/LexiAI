@@ -163,7 +163,6 @@ const useChatStore = create((set, get) => ({
     }
   },
 
-
   // Modify askQuestion to update chat history
   askQuestion: async (question, userId) => {
     const { currentPdf } = get();
@@ -218,7 +217,7 @@ const useChatStore = create((set, get) => ({
     set({ currentPdf: pdf });
     await store.fetchPDFChats(pdf._id);
   },
-  // Update clearChat to also clear chat history for the current PDF
+  
   clearChat: () => {
     const { currentPdf } = get();
     set(state => ({

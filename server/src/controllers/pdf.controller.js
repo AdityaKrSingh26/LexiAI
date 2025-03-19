@@ -9,7 +9,7 @@ import pdfParse from 'pdf-parse';
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-// Upload PDF - working ========================
+// Upload PDF
 export const uploadPDF = async (req, res) => {
     console.log("[uploadPDF] Starting PDF upload process");
     try {
@@ -101,46 +101,6 @@ export const uploadPDF = async (req, res) => {
     }
 };
 
-// Get all PDFs for a user - working ========================
-export const getAllPDFs = async (req, res) => {
-    console.log("[getAllPDFs] Fetching all PDFs for user");
-    try {
-        const userId = req.body.userId || req.user?._id;
-
-        if (!userId) {
-            console.error("[getAllPDFs] No user ID provided");
-            return res.status(400).json({
-                success: false,
-                message: 'User ID is required'
-            });
-        }
-
-        console.log("[getAllPDFs] Querying PDFs for user:", userId);
-        const pdfs = await PDF.find({ user: userId })
-            .select('-textContent')
-            .sort('-uploadedAt');
-
-        console.log(`[getAllPDFs] Retrieved ${pdfs.length} PDFs for user ${userId}`);
-        res.status(200).json({
-            success: true,
-            count: pdfs.length,
-            data: pdfs
-        });
-    } catch (error) {
-        console.error("[getAllPDFs] Error fetching PDFs:", {
-            message: error.message,
-            stack: error.stack,
-            name: error.name
-        });
-
-        res.status(500).json({
-            success: false,
-            message: 'Failed to retrieve PDFs',
-            error: error.message
-        });
-    }
-};
-
 // Get PDF by ID
 export const getPDFById = async (req, res) => {
     console.log("[getPDFById] Fetching PDF by ID:", req.params.id);
@@ -197,6 +157,7 @@ export const getPDFById = async (req, res) => {
     }
 };
 
+// Get all PDFs for user
 export const getUserPDFs = async (req, res) => {
     console.log("[getUserPDFs] Fetching PDFs with chat counts");
     try {
@@ -407,7 +368,7 @@ export const summarizePDF = async (req, res) => {
     }
 };
 
-// Ask question about PDF - working ========================
+// Ask question about PDF 
 export const askQuestion = async (req, res) => {
     console.log("[askQuestion] Processing question for PDF:", req.params.id);
     try {
