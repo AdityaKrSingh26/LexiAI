@@ -4,21 +4,14 @@ LexiAI is an intelligent PDF assistant that helps you work smarter with document
 
 ## What LexiAI Can Do  
 
-**Smart PDF Chat** – Upload any PDF and ask questions about it. Get accurate answers from your documents using AI.
-
-**Document Collections** – Organize your PDFs into color-coded collections. Perfect for organizing research papers, books, or work documents.
-
-**Intelligent Search** – Find documents quickly with smart search across all your uploaded files.
-
-**Note Taking** – Take notes while reading and save them for later. All your notes are organized and easy to find.
-
-**Chat History** – Keep track of all your conversations with each document. Never lose important insights.
-
-**User Management** – Secure login system with personal document libraries for each user.
-
-**Cloud Storage** – All your documents are safely stored in the cloud and accessible from anywhere.
-
-**Responsive Design** – Works great on desktop, tablet, and mobile devices.
+- **Smart PDF Chat** – Upload any PDF and ask questions about it. Get accurate answers from your documents using AI.
+- **Document Collections** – Organize your PDFs into color-coded collections. Perfect for organizing research papers, books, or work documents.
+- **Intelligent Search** – Find documents quickly with smart search across all your uploaded files.
+- **Note Taking** – Take notes while reading and save them for later. All your notes are organized and easy to find.
+- **Chat History** – Keep track of all your conversations with each document. Never lose important insights.
+- **User Management** – Secure login system with personal document libraries for each user.
+- **Cloud Storage** – All your documents are safely stored in the cloud and accessible from anywhere.
+- **Responsive Design** – Works great on desktop, tablet, and mobile devices.
 
 ## How It Works
 
@@ -127,18 +120,10 @@ The app will be running at `http://localhost:5173`
 
 ## What Makes This Project Special
 
-**Full-Stack Development** – Built from scratch with modern React frontend and Express.js backend. Shows proficiency in both client and server-side development.
-
-**AI Integration** – Implemented Google Gemini AI for document querying. Demonstrates ability to work with AI APIs and handle complex data processing.
-
-**Database Design** – Designed MongoDB schemas for users, documents, chats, and collections. Shows understanding of NoSQL database architecture.
-
-**File Handling** – Implemented secure file upload, processing, and storage with Cloudinary. Shows expertise in handling file operations.
-
-**State Management** – Used Zustand for efficient state management across the application. Demonstrates modern React patterns.
-
-**User Authentication** – Built secure login/signup system with JWT tokens and password hashing. Shows security best practices.
-
-**Responsive UI** – Crafted modern, mobile-first interface with TailwindCSS. Demonstrates frontend design skills.
-
-This project showcases real-world application development skills including API integration, database design, user authentication, file handling, and modern frontend development practices.  
+- **Full-Stack Development** – Built from scratch with modern React frontend and Express.js backend. Shows proficiency in both client and server-side development.
+- **AI Integration** – Implemented Google Gemini AI for document querying. Demonstrates ability to work with AI APIs and handle complex data processing.
+- **Database Design** – Designed MongoDB schemas for users, documents, chats, and collections. Shows understanding of NoSQL database architecture.
+- **File Handling** – Implemented secure file upload, processing, and storage with Cloudinary. Shows expertise in handling file operations.
+- **State Management** – Used Zustand for efficient state management across the application. Demonstrates modern React patterns.
+- **User Authentication** – Built secure login/signup system with JWT tokens and password hashing. Shows security best practices.
+- **Responsive UI** – Crafted modern, mobile-first interface with TailwindCSS. Demonstrates frontend design skills.
