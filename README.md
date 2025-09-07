@@ -1,23 +1,42 @@
 # LexiAI – AI-Powered PDF Assistant  
 
-LexiAI is an intelligent PDF assistant that enables users to query documents, generate summaries, and create structured notes with AI-powered flowchart visualizations. Built with modern technologies like **React.js, Express.js, TailwindCSS, MongoDB, Gemini AI, and Cloudinary**, LexiAI enhances document interaction, making research and study more efficient.  
+LexiAI is an intelligent PDF assistant that helps you work smarter with documents. Upload PDFs, chat with them using AI, organize your documents in collections, and get instant answers to your questions. Built with modern web technologies for a smooth user experience.
 
-## Features  
+## What LexiAI Can Do  
 
-**AI-Powered Document Querying** – Ask questions directly within PDFs and receive precise, context-aware responses using **Gemini AI**.  
-**Smart Summarization** – Get concise summaries of lengthy documents, accelerating content understanding.  
-**Intelligent Note-Taking** – Create, Organize, annotate, and retrieve notes efficiently, improving research productivity.  
-<!---
-**Flowchart Generation** – Automatically create structured flowcharts for complex topics, enhancing comprehension. 
--->
+**Smart PDF Chat** – Upload any PDF and ask questions about it. Get accurate answers from your documents using AI.
+
+**Document Collections** – Organize your PDFs into color-coded collections. Perfect for organizing research papers, books, or work documents.
+
+**Intelligent Search** – Find documents quickly with smart search across all your uploaded files.
+
+**Note Taking** – Take notes while reading and save them for later. All your notes are organized and easy to find.
+
+**Chat History** – Keep track of all your conversations with each document. Never lose important insights.
+
+**User Management** – Secure login system with personal document libraries for each user.
+
+**Cloud Storage** – All your documents are safely stored in the cloud and accessible from anywhere.
+
+**Responsive Design** – Works great on desktop, tablet, and mobile devices.
+
+## How It Works
+
+1. **Sign Up** – Create your free account to get started
+2. **Upload PDFs** – Drag and drop your documents or browse to upload
+3. **Organize** – Create collections to group related documents
+4. **Chat** – Ask questions about your documents and get AI-powered answers
+5. **Take Notes** – Save important insights and thoughts while reading
+6. **Search** – Find any document or conversation quickly
 
 ## Tech Stack  
 
-- **Frontend**: React.js, TailwindCSS  
+- **Frontend**: React.js, TailwindCSS, Vite  
 - **Backend**: Express.js, Node.js  
 - **Database**: MongoDB  
-- **AI Integration**: Gemini AI  
-- **Cloud Storage**: Cloudinary  
+- **AI**: Google Gemini AI  
+- **File Storage**: Cloudinary  
+- **Authentication**: JWT Tokens  
 
 ## Screenshots  
 ![image](https://github.com/user-attachments/assets/68dabd76-3487-4663-8c86-725130151ab9)
@@ -33,6 +52,7 @@ LexiAI is an intelligent PDF assistant that enables users to query documents, ge
 
 ## Installation  
 
+Clone the repository:
 ```sh
 git clone https://github.com/AdityaKrSingh26/LexiAI.git
 cd LexiAI
@@ -43,6 +63,20 @@ cd LexiAI
 ```sh
 cd server
 npm install
+```
+
+Create a `.env` file in the server directory:
+```
+MONGODB_URI=your_mongodb_connection_string
+GEMINI_API_KEY=your_gemini_api_key
+CLOUDINARY_CLOUD_NAME=your_cloudinary_name
+CLOUDINARY_API_KEY=your_cloudinary_key
+CLOUDINARY_API_SECRET=your_cloudinary_secret
+JWT_SECRET=your_jwt_secret
+```
+
+Start the server:
+```sh
 npm start
 ```
 
@@ -54,9 +88,57 @@ npm install
 npm run dev
 ```
 
+The app will be running at `http://localhost:5173`
+
+## Key Features Implemented
+
+### Document Management
+- **File Upload**: Drag & drop PDF upload with Cloudinary integration
+- **Collections System**: Organize documents with custom colors and categories
+- **Search & Filter**: Find documents quickly with text search and filters
+- **Document Analytics**: Track usage statistics and document insights
+
+### AI Chat System  
+- **Context-Aware Responses**: AI understands document content and provides relevant answers
+- **Chat History**: All conversations are saved and can be resumed anytime
+- **Multi-Document Support**: Switch between different documents seamlessly
+- **Real-time Processing**: Fast AI responses with loading indicators
+
+### User Experience
+- **Responsive Design**: Works on all screen sizes with mobile-first approach
+- **Dark Theme**: Modern dark UI for comfortable reading
+- **Loading States**: Smooth animations and loading indicators throughout
+- **Error Handling**: User-friendly error messages and recovery options
+
+### Security & Performance
+- **JWT Authentication**: Secure user sessions with token-based auth
+- **Rate Limiting**: API protection against spam and abuse
+- **Input Validation**: Server-side validation for all user inputs
+- **CORS Configuration**: Proper cross-origin request handling
+
 ## Usage  
 
-1. Upload a PDF to the platform.  
-2. Query the document for AI-generated answers.  
-3. Generate summaries.  
-4. Take intelligent notes and retrieve them easily.  
+1. **Create Account** – Sign up with your email and password
+2. **Upload Documents** – Click "Upload Document" and select your PDF files  
+3. **Organize** – Create collections and add documents to them
+4. **Start Chatting** – Click on any document and start asking questions
+5. **Take Notes** – Use the notes feature to save important information
+6. **Manage Library** – View all your documents in the dashboard  
+
+## What Makes This Project Special
+
+**Full-Stack Development** – Built from scratch with modern React frontend and Express.js backend. Shows proficiency in both client and server-side development.
+
+**AI Integration** – Implemented Google Gemini AI for document querying. Demonstrates ability to work with AI APIs and handle complex data processing.
+
+**Database Design** – Designed MongoDB schemas for users, documents, chats, and collections. Shows understanding of NoSQL database architecture.
+
+**File Handling** – Implemented secure file upload, processing, and storage with Cloudinary. Shows expertise in handling file operations.
+
+**State Management** – Used Zustand for efficient state management across the application. Demonstrates modern React patterns.
+
+**User Authentication** – Built secure login/signup system with JWT tokens and password hashing. Shows security best practices.
+
+**Responsive UI** – Crafted modern, mobile-first interface with TailwindCSS. Demonstrates frontend design skills.
+
+This project showcases real-world application development skills including API integration, database design, user authentication, file handling, and modern frontend development practices.  
