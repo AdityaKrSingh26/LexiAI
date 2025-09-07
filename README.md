@@ -32,11 +32,11 @@ LexiAI is an intelligent PDF assistant that helps you work smarter with document
 - **Authentication**: JWT Tokens  
 
 ## Screenshots  
-![image](https://github.com/user-attachments/assets/68dabd76-3487-4663-8c86-725130151ab9)
-![image](https://github.com/user-attachments/assets/a2ac34fc-f5bc-4cc9-9efa-98d9b4b254c1)
-![image](https://github.com/user-attachments/assets/ccc8a06d-ce13-432a-9912-aa5edc9202d1)
-![image](https://github.com/user-attachments/assets/080abdc2-8a9d-4171-ac7d-2a814b5171b9)
-![image](https://github.com/user-attachments/assets/c33e7d4f-a4f4-447c-86cf-65195ac99783)
+<img width="1090" height="935" alt="image" src="https://github.com/user-attachments/assets/ca7a4b6b-a345-4df3-a426-688d1db27de2" />
+<img width="1814" height="616" alt="image" src="https://github.com/user-attachments/assets/51d22f49-0e05-4f7e-9e44-c29f15651363" />
+<img width="1916" height="947" alt="image" src="https://github.com/user-attachments/assets/8abeb417-26a5-4d9d-b4ea-bb063f8e8917" />
+<img width="1904" height="950" alt="image" src="https://github.com/user-attachments/assets/e86ec7af-3d3d-43a4-b44a-a9b27146152f" />
+
 
 
 
