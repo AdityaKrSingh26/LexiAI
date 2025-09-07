@@ -4,6 +4,8 @@ import User from '../models/user.model.js';
 import Chat from '../models/chat.model.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import pdfParse from 'pdf-parse';
+import { v2 as cloudinary } from 'cloudinary';
+import { getRelevantContext, preprocessPDFContent } from '../utils/textChunking.js';
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -64,12 +66,30 @@ export const uploadPDF = async (req, res) => {
         }
         // Create PDF document
         console.log("[uploadPDF] Creating PDF document in database");
+        
+        // Pre-process the content into chunks for better search performance
+        let chunks = [];
+        if (pdfContent && pdfContent.length > 0) {
+            console.log("[uploadPDF] Pre-processing PDF content into chunks");
+            chunks = preprocessPDFContent(pdfContent, {
+                maxChunkSize: 2000,
+                overlap: 200,
+                includeMetadata: true
+            });
+            console.log(`[uploadPDF] Created ${chunks.length} chunks for storage`);
+        }
+
         const pdf = await PDF.create({
             user: req.body.userId,
             title: req.body.title || req.file.originalname,
             originalFilename: req.file.originalname,
             url: result.url,
-            textContent: pdfContent
+            textContent: pdfContent,
+            chunks: chunks,
+            chunkingEnabled: true,
+            fileSize: req.file.size || 0, // Store file size in bytes
+            mimeType: req.file.mimetype || 'application/pdf',
+            status: 'ready'
         });
 
         // Return response without the textContent field
@@ -229,7 +249,8 @@ export const deletePDF = async (req, res) => {
                 message: 'PDF ID is required'
             });
         }
-        const {userId} = req.body;
+        
+        const userId = req.user._id;
         if (!userId) {
             console.error("[deletePDF] No user ID available");
             return res.status(401).json({
@@ -239,10 +260,11 @@ export const deletePDF = async (req, res) => {
         }
 
         console.log(`[deletePDF] Finding PDF with ID ${req.params.id} for user ${userId}`);
-        const pdf = await PDF.findOneAndDelete({
+        // First find the PDF to get its details before deletion
+        const pdf = await PDF.findOne({
             _id: req.params.id,
             user: userId
-        });
+        }).populate('collections');
 
         if (!pdf) {
             console.error(`[deletePDF] PDF not found with ID ${req.params.id} for user ${userId}`);
@@ -257,10 +279,53 @@ export const deletePDF = async (req, res) => {
         const deleteResult = await Chat.deleteMany({ pdfId: pdf._id });
         console.log(`[deletePDF] Deleted ${deleteResult.deletedCount} chats associated with PDF ${pdf._id}`);
 
+        // Remove PDF from all collections
+        if (pdf.collections && pdf.collections.length > 0) {
+            console.log(`[deletePDF] Removing PDF from ${pdf.collections.length} collections`);
+            const Collection = (await import('../models/collection.model.js')).default;
+            
+            for (const collection of pdf.collections) {
+                await Collection.findByIdAndUpdate(
+                    collection._id,
+                    { $pull: { documents: pdf._id } }
+                );
+                console.log(`[deletePDF] Removed PDF from collection: ${collection.name}`);
+            }
+        }
+
+        // Clean up from Cloudinary if needed
+        try {
+            if (pdf.url) {
+                console.log(`[deletePDF] Attempting to clean up Cloudinary resource for PDF: ${pdf._id}`);
+                // Extract public_id from Cloudinary URL
+                const urlParts = pdf.url.split('/');
+                const filename = urlParts[urlParts.length - 1];
+                const publicId = `pdfs/${filename.split('.')[0]}`;
+                
+                const { deleteFromCloudinary } = await import('../config/cloudinary.js');
+                const cloudinaryResult = await deleteFromCloudinary(publicId);
+                
+                if (cloudinaryResult.success) {
+                    console.log(`[deletePDF] Successfully deleted from Cloudinary: ${publicId}`);
+                } else {
+                    console.warn(`[deletePDF] Failed to delete from Cloudinary: ${cloudinaryResult.error}`);
+                }
+            }
+        } catch (cloudinaryError) {
+            console.warn(`[deletePDF] Cloudinary cleanup failed (non-critical): ${cloudinaryError.message}`);
+        }
+
+        // Delete the PDF document
+        await PDF.findByIdAndDelete(pdf._id);
         console.log(`[deletePDF] Successfully deleted PDF: ${pdf._id}`);
+
         res.status(200).json({
             success: true,
-            message: 'PDF deleted successfully'
+            message: 'PDF and all related data deleted successfully',
+            data: {
+                deletedChats: deleteResult.deletedCount,
+                removedFromCollections: pdf.collections ? pdf.collections.length : 0
+            }
         });
     } catch (error) {
         console.error("[deletePDF] Error deleting PDF:", {
@@ -368,7 +433,7 @@ export const summarizePDF = async (req, res) => {
     }
 };
 
-// Ask question about PDF 
+// Ask question about PDF with semantic search
 export const askQuestion = async (req, res) => {
     console.log("[askQuestion] Processing question for PDF:", req.params.id);
     try {
@@ -390,7 +455,6 @@ export const askQuestion = async (req, res) => {
             });
         }
 
-
         if (!question || question.trim() === '') {
             console.error("[askQuestion] No question provided in request body");
             return res.status(400).json({
@@ -403,7 +467,7 @@ export const askQuestion = async (req, res) => {
         const pdf = await PDF.findOne({
             _id: req.params.id,
             user: userId
-        }).select('+textContent');
+        }).select('+textContent +chunks');
 
         if (!pdf) {
             console.error(`[askQuestion] PDF not found with ID ${req.params.id} for user ${userId}`);
@@ -425,19 +489,89 @@ export const askQuestion = async (req, res) => {
         console.log(`[askQuestion] Question: "${question}"`);
 
         try {
-            const prompt = `Based on the following text: "${pdf.textContent}", please answer this question: ${question}`;
+            let contextText = '';
+            let metadata = {};
+
+            // Use semantic search to find relevant chunks
+            if (pdf.chunkingEnabled && pdf.chunks && pdf.chunks.length > 0) {
+                console.log(`[askQuestion] Using pre-stored chunks (${pdf.chunks.length} available) for semantic search`);
+                
+                // Convert stored chunks back to the format expected by findRelevantChunks
+                const chunksForSearch = pdf.chunks.map(chunk => ({
+                    text: chunk.text,
+                    startIndex: chunk.startIndex,
+                    endIndex: chunk.endIndex,
+                    length: chunk.length,
+                    chunkId: chunk.chunkId
+                }));
+
+                const relevantContext = await getRelevantContext(question, pdf.textContent, {
+                    maxChunkSize: 2000,
+                    overlap: 200,
+                    topK: 3,
+                    maxContextLength: 6000
+                });
+
+                contextText = relevantContext.contextText;
+                metadata = relevantContext.metadata;
+                
+                console.log(`[askQuestion] Using semantic search: ${metadata.selectedChunks}/${metadata.totalChunks} chunks, ${metadata.contextLength} chars, avg relevance: ${metadata.averageRelevanceScore?.toFixed(2)}`);
+            } else {
+                console.log(`[askQuestion] No chunks available, using full content with length limit`);
+                // Fallback: use the first portion of the document if it's very long
+                const maxLength = 6000;
+                if (pdf.textContent.length > maxLength) {
+                    contextText = pdf.textContent.substring(0, maxLength) + '\n[Note: Document truncated for processing]';
+                    console.log(`[askQuestion] Content truncated from ${pdf.textContent.length} to ${contextText.length} characters`);
+                } else {
+                    contextText = pdf.textContent;
+                }
+                metadata = {
+                    totalChunks: 1,
+                    selectedChunks: 1,
+                    contextLength: contextText.length,
+                    averageRelevanceScore: 1.0,
+                    method: 'full-content'
+                };
+            }
+
+            // Create enhanced prompt with context information
+            const prompt = `You are analyzing a document to answer a specific question. Use the provided relevant sections to give an accurate and helpful response.
+
+QUESTION: ${question}
+
+RELEVANT DOCUMENT SECTIONS:
+${contextText}
+
+INSTRUCTIONS:
+1. Answer the question based on the provided sections
+2. If the information is not fully covered in these sections, mention that
+3. Be specific and cite relevant parts when possible
+4. If you need to make inferences, clearly indicate them
+5. Keep your response focused and concise
+
+ANSWER:`;
+
             const result = await model.generateContent(prompt);
             const response = result.response.text();
 
             console.log(`[askQuestion] Successfully generated response for question on PDF: ${pdf._id}`);
+            console.log(`[askQuestion] Context used: ${metadata.contextLength} characters from ${metadata.selectedChunks} chunks`);
 
-            // Save chat
+            // Save chat with metadata about the search
             console.log(`[askQuestion] Saving chat for PDF: ${pdf._id}`);
             const chat = await Chat.create({
                 pdfId: pdf._id,
                 userId: userId,
                 question,
-                response
+                response,
+                metadata: {
+                    searchMethod: pdf.chunkingEnabled ? 'semantic_search' : 'full_content',
+                    chunksUsed: metadata.selectedChunks || 1,
+                    totalChunks: metadata.totalChunks || 1,
+                    contextLength: metadata.contextLength,
+                    averageRelevanceScore: metadata.averageRelevanceScore
+                }
             });
             console.log(`[askQuestion] Chat saved with ID: ${chat._id}`);
 
@@ -447,7 +581,10 @@ export const askQuestion = async (req, res) => {
 
             res.status(200).json({
                 success: true,
-                data: chat
+                data: {
+                    ...chat.toObject(),
+                    searchMetadata: metadata
+                }
             });
         } catch (aiError) {
             console.error("[askQuestion] AI processing error:", {
@@ -681,6 +818,610 @@ export const getNotes = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to fetch notes',
+            error: error.message
+        });
+    }
+};
+
+// Enhanced search functionality
+export const searchDocuments = async (req, res) => {
+    console.log('[searchDocuments] Searching documents');
+    try {
+        const { query, tags, collections, dateFrom, dateTo, fileSize, sortBy = 'uploadedAt', sortOrder = 'desc' } = req.query;
+        const userId = req.user._id;
+
+        let searchCriteria = {
+            $or: [
+                { user: userId },
+                { 'sharedWith.user': userId },
+                { isPublic: true }
+            ]
+        };
+
+        // Text search
+        if (query) {
+            searchCriteria.$and = searchCriteria.$and || [];
+            searchCriteria.$and.push({
+                $or: [
+                    { title: { $regex: query, $options: 'i' } },
+                    { 'metadata.author': { $regex: query, $options: 'i' } },
+                    { 'metadata.subject': { $regex: query, $options: 'i' } },
+                    { tags: { $in: [query] } }
+                ]
+            });
+        }
+
+        // Filter by tags
+        if (tags) {
+            const tagArray = Array.isArray(tags) ? tags : tags.split(',');
+            searchCriteria.tags = { $in: tagArray };
+        }
+
+        // Filter by collections
+        if (collections) {
+            const collectionArray = Array.isArray(collections) ? collections : collections.split(',');
+            searchCriteria.collections = { $in: collectionArray };
+        }
+
+        // Date range filter
+        if (dateFrom || dateTo) {
+            searchCriteria.uploadedAt = {};
+            if (dateFrom) searchCriteria.uploadedAt.$gte = new Date(dateFrom);
+            if (dateTo) searchCriteria.uploadedAt.$lte = new Date(dateTo);
+        }
+
+        // File size filter
+        if (fileSize) {
+            const sizeFilter = fileSize.split('-');
+            if (sizeFilter.length === 2) {
+                searchCriteria.fileSize = {
+                    $gte: parseInt(sizeFilter[0]) * 1024 * 1024, // Convert MB to bytes
+                    $lte: parseInt(sizeFilter[1]) * 1024 * 1024
+                };
+            }
+        }
+
+        const sortObj = {};
+        sortObj[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+        const documents = await PDF.find(searchCriteria)
+            .populate('collections', 'name color')
+            .populate('user', 'username email')
+            .sort(sortObj)
+            .limit(100); // Limit results for performance
+
+        console.log(`[searchDocuments] Found ${documents.length} documents`);
+        res.status(200).json({
+            success: true,
+            count: documents.length,
+            data: documents
+        });
+    } catch (error) {
+        console.error('[searchDocuments] Error searching documents:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error searching documents',
+            error: error.message
+        });
+    }
+};
+
+// Bulk operations
+export const bulkOperations = async (req, res) => {
+    console.log('[bulkOperations] Processing bulk operation');
+    try {
+        const { operation, documentIds, data } = req.body;
+        const userId = req.user._id;
+
+        // Verify user has access to all documents
+        const documents = await PDF.find({
+            _id: { $in: documentIds },
+            $or: [
+                { user: userId },
+                { 'sharedWith.user': userId }
+            ]
+        });
+
+        if (documents.length !== documentIds.length) {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied to some documents'
+            });
+        }
+
+        let result;
+        switch (operation) {
+            case 'delete':
+                result = await PDF.deleteMany({ _id: { $in: documentIds } });
+                break;
+            case 'addTags':
+                result = await PDF.updateMany(
+                    { _id: { $in: documentIds } },
+                    { $addToSet: { tags: { $each: data.tags } } }
+                );
+                break;
+            case 'removeTags':
+                result = await PDF.updateMany(
+                    { _id: { $in: documentIds } },
+                    { $pull: { tags: { $in: data.tags } } }
+                );
+                break;
+            case 'addToCollection':
+                result = await PDF.updateMany(
+                    { _id: { $in: documentIds } },
+                    { $addToSet: { collections: data.collectionId } }
+                );
+                break;
+            case 'removeFromCollection':
+                result = await PDF.updateMany(
+                    { _id: { $in: documentIds } },
+                    { $pull: { collections: data.collectionId } }
+                );
+                break;
+            case 'toggleFavorite':
+                // For each document, toggle its favorite status
+                const updates = await Promise.all(
+                    documents.map(async (doc) => {
+                        return PDF.findByIdAndUpdate(
+                            doc._id,
+                            { isFavorite: !doc.isFavorite },
+                            { new: true }
+                        );
+                    })
+                );
+                result = { modifiedCount: updates.length };
+                break;
+            default:
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid operation'
+                });
+        }
+
+        console.log(`[bulkOperations] ${operation} completed for ${result.modifiedCount || result.deletedCount} documents`);
+        res.status(200).json({
+            success: true,
+            message: `${operation} completed for ${result.modifiedCount || result.deletedCount} documents`,
+            data: result
+        });
+    } catch (error) {
+        console.error('[bulkOperations] Error in bulk operation:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error in bulk operation',
+            error: error.message
+        });
+    }
+};
+
+// Share document
+export const shareDocument = async (req, res) => {
+    console.log(`[shareDocument] Sharing document: ${req.params.id}`);
+    try {
+        const { id } = req.params;
+        const { email, permission = 'read' } = req.body;
+        const userId = req.user._id;
+
+        const document = await PDF.findById(id);
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                message: 'Document not found'
+            });
+        }
+
+        if (!document.user.equals(userId)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Permission denied'
+            });
+        }
+
+        const targetUser = await User.findOne({ email });
+        if (!targetUser) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        // Check if already shared
+        const existingShare = document.sharedWith.find(share => 
+            share.user.equals(targetUser._id)
+        );
+
+        if (existingShare) {
+            existingShare.permission = permission;
+        } else {
+            document.sharedWith.push({
+                user: targetUser._id,
+                permission,
+                sharedAt: new Date()
+            });
+        }
+
+        await document.save();
+
+        console.log(`[shareDocument] Document shared with ${email}`);
+        res.status(200).json({
+            success: true,
+            message: `Document shared with ${email}`,
+            data: document
+        });
+    } catch (error) {
+        console.error('[shareDocument] Error sharing document:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error sharing document',
+            error: error.message
+        });
+    }
+};
+
+// Get document versions
+export const getDocumentVersions = async (req, res) => {
+    console.log(`[getDocumentVersions] Getting versions for document: ${req.params.id}`);
+    try {
+        const { id } = req.params;
+        const userId = req.user._id;
+
+        const document = await PDF.findById(id);
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                message: 'Document not found'
+            });
+        }
+
+        if (!document.hasPermission(userId, 'read')) {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied'
+            });
+        }
+
+        // Track access
+        await document.trackAccess();
+
+        res.status(200).json({
+            success: true,
+            data: {
+                currentVersion: document.version,
+                versions: document.versions
+            }
+        });
+    } catch (error) {
+        console.error('[getDocumentVersions] Error getting versions:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error getting document versions',
+            error: error.message
+        });
+    }
+};
+
+// Toggle favorite
+export const toggleFavorite = async (req, res) => {
+    console.log(`[toggleFavorite] Toggling favorite for document: ${req.params.id}`);
+    try {
+        const { id } = req.params;
+        const userId = req.user._id;
+
+        const document = await PDF.findOne({
+            _id: id,
+            $or: [
+                { user: userId },
+                { 'sharedWith.user': userId }
+            ]
+        });
+
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                message: 'Document not found'
+            });
+        }
+
+        document.isFavorite = !document.isFavorite;
+        await document.save();
+
+        console.log(`[toggleFavorite] Document favorite toggled to: ${document.isFavorite}`);
+        res.status(200).json({
+            success: true,
+            data: { isFavorite: document.isFavorite }
+        });
+    } catch (error) {
+        console.error('[toggleFavorite] Error toggling favorite:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error toggling favorite',
+            error: error.message
+        });
+    }
+};
+
+// Get user analytics
+export const getUserAnalytics = async (req, res) => {
+    console.log('[getUserAnalytics] Getting user analytics');
+    try {
+        const userId = req.user._id;
+
+        const analytics = await PDF.aggregate([
+            {
+                $match: {
+                    $or: [
+                        { user: userId },
+                        { 'sharedWith.user': userId }
+                    ]
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalDocuments: { $sum: 1 },
+                    totalFileSize: { $sum: '$fileSize' },
+                    totalAccess: { $sum: '$accessCount' },
+                    favoriteCount: {
+                        $sum: {
+                            $cond: [{ $eq: ['$isFavorite', true] }, 1, 0]
+                        }
+                    },
+                    avgFileSize: { $avg: '$fileSize' }
+                }
+            }
+        ]);
+
+        const tagStats = await PDF.aggregate([
+            {
+                $match: {
+                    $or: [
+                        { user: userId },
+                        { 'sharedWith.user': userId }
+                    ]
+                }
+            },
+            { $unwind: '$tags' },
+            {
+                $group: {
+                    _id: '$tags',
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { count: -1 } },
+            { $limit: 10 }
+        ]);
+
+        const recentActivity = await PDF.find({
+            $or: [
+                { user: userId },
+                { 'sharedWith.user': userId }
+            ]
+        })
+        .sort({ lastAccessedAt: -1 })
+        .limit(10)
+        .select('title lastAccessedAt accessCount');
+
+        console.log('[getUserAnalytics] Analytics calculated');
+        res.status(200).json({
+            success: true,
+            data: {
+                overview: analytics[0] || {
+                    totalDocuments: 0,
+                    totalFileSize: 0,
+                    totalAccess: 0,
+                    favoriteCount: 0,
+                    avgFileSize: 0
+                },
+                topTags: tagStats,
+                recentActivity
+            }
+        });
+    } catch (error) {
+        console.error('[getUserAnalytics] Error getting analytics:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error getting analytics',
+            error: error.message
+        });
+    }
+};
+
+// Update file sizes for existing documents
+export const updateFileSizes = async (req, res) => {
+    try {
+        console.log("[updateFileSizes] Starting file size update process");
+        
+        // Find documents without file sizes
+        const documentsWithoutSize = await PDF.find({
+            $or: [
+                { fileSize: { $exists: false } },
+                { fileSize: 0 },
+                { fileSize: null }
+            ]
+        }).select('url title _id');
+
+        console.log(`[updateFileSizes] Found ${documentsWithoutSize.length} documents without file sizes`);
+
+        let updatedCount = 0;
+        let errorCount = 0;
+
+        for (const doc of documentsWithoutSize) {
+            try {
+                // Extract public_id from Cloudinary URL
+                const urlParts = doc.url.split('/');
+                const fileNameWithExtension = urlParts[urlParts.length - 1];
+                const fileName = fileNameWithExtension.split('.')[0];
+                const publicId = `pdfs/${fileName}`;
+
+                // Get resource details from Cloudinary
+                const result = await cloudinary.api.resource(publicId, { resource_type: 'image' });
+                
+                if (result && result.bytes) {
+                    await PDF.findByIdAndUpdate(doc._id, { 
+                        fileSize: result.bytes,
+                        mimeType: 'application/pdf'
+                    });
+                    updatedCount++;
+                    console.log(`[updateFileSizes] Updated ${doc.title}: ${result.bytes} bytes`);
+                } else {
+                    console.warn(`[updateFileSizes] No size info for ${doc.title}`);
+                }
+            } catch (error) {
+                console.error(`[updateFileSizes] Error updating ${doc.title}:`, error.message);
+                errorCount++;
+            }
+        }
+
+        console.log(`[updateFileSizes] Completed: ${updatedCount} updated, ${errorCount} errors`);
+
+        res.json({
+            success: true,
+            message: `Updated ${updatedCount} documents. ${errorCount} errors encountered.`,
+            updated: updatedCount,
+            errors: errorCount,
+            total: documentsWithoutSize.length
+        });
+
+    } catch (error) {
+        console.error("[updateFileSizes] Error:", error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update file sizes',
+            error: error.message
+        });
+    }
+};
+
+// Re-chunk existing PDFs for semantic search
+export const rechunkPDFs = async (req, res) => {
+    try {
+        console.log("[rechunkPDFs] Starting re-chunking process for existing PDFs");
+        
+        // Find PDFs that don't have chunks or have chunking disabled
+        const pdfsToChunk = await PDF.find({
+            $or: [
+                { chunks: { $exists: false } },
+                { chunks: { $size: 0 } },
+                { chunkingEnabled: false },
+                { chunkingEnabled: { $exists: false } }
+            ],
+            textContent: { $exists: true, $ne: '' }
+        }).select('+textContent');
+
+        console.log(`[rechunkPDFs] Found ${pdfsToChunk.length} PDFs to re-chunk`);
+
+        let processedCount = 0;
+        let errorCount = 0;
+
+        for (const pdf of pdfsToChunk) {
+            try {
+                if (!pdf.textContent || pdf.textContent.trim() === '') {
+                    console.log(`[rechunkPDFs] Skipping PDF ${pdf._id} - no text content`);
+                    continue;
+                }
+
+                console.log(`[rechunkPDFs] Processing PDF: ${pdf.title} (${pdf.textContent.length} characters)`);
+                
+                // Generate chunks
+                const chunks = preprocessPDFContent(pdf.textContent, {
+                    maxChunkSize: 2000,
+                    overlap: 200,
+                    includeMetadata: true
+                });
+
+                // Update the PDF with chunks
+                await PDF.findByIdAndUpdate(pdf._id, {
+                    chunks: chunks,
+                    chunkingEnabled: true,
+                    status: 'ready'
+                });
+
+                processedCount++;
+                console.log(`[rechunkPDFs] Successfully chunked ${pdf.title}: ${chunks.length} chunks created`);
+
+            } catch (error) {
+                console.error(`[rechunkPDFs] Error processing PDF ${pdf.title}:`, error.message);
+                errorCount++;
+            }
+        }
+
+        console.log(`[rechunkPDFs] Completed: ${processedCount} processed, ${errorCount} errors`);
+
+        res.json({
+            success: true,
+            message: `Re-chunked ${processedCount} PDFs. ${errorCount} errors encountered.`,
+            processed: processedCount,
+            errors: errorCount,
+            total: pdfsToChunk.length
+        });
+
+    } catch (error) {
+        console.error("[rechunkPDFs] Error:", error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to re-chunk PDFs',
+            error: error.message
+        });
+    }
+};
+
+// Get chunking statistics for a PDF
+export const getChunkingStats = async (req, res) => {
+    try {
+        console.log(`[getChunkingStats] Getting chunking stats for PDF: ${req.params.id}`);
+        
+        const pdf = await PDF.findById(req.params.id).select('+chunks +textContent');
+        
+        if (!pdf) {
+            return res.status(404).json({
+                success: false,
+                message: 'PDF not found'
+            });
+        }
+
+        const stats = {
+            pdfId: pdf._id,
+            title: pdf.title,
+            chunkingEnabled: pdf.chunkingEnabled || false,
+            totalTextLength: pdf.textContent ? pdf.textContent.length : 0,
+            totalChunks: pdf.chunks ? pdf.chunks.length : 0,
+            averageChunkSize: 0,
+            chunkSizeDistribution: {
+                small: 0,    // < 1000 chars
+                medium: 0,   // 1000-2000 chars
+                large: 0     // > 2000 chars
+            }
+        };
+
+        if (pdf.chunks && pdf.chunks.length > 0) {
+            const chunkSizes = pdf.chunks.map(chunk => chunk.length);
+            stats.averageChunkSize = chunkSizes.reduce((sum, size) => sum + size, 0) / chunkSizes.length;
+            
+            stats.chunkSizeDistribution.small = chunkSizes.filter(size => size < 1000).length;
+            stats.chunkSizeDistribution.medium = chunkSizes.filter(size => size >= 1000 && size <= 2000).length;
+            stats.chunkSizeDistribution.large = chunkSizes.filter(size => size > 2000).length;
+            
+            stats.chunkDetails = pdf.chunks.map(chunk => ({
+                chunkId: chunk.chunkId,
+                length: chunk.length,
+                wordCount: chunk.wordCount,
+                hasNumbers: chunk.hasNumbers,
+                hasFormulas: chunk.hasFormulas,
+                sentences: chunk.sentences,
+                preview: chunk.text.substring(0, 100) + '...'
+            }));
+        }
+
+        res.json({
+            success: true,
+            data: stats
+        });
+
+    } catch (error) {
+        console.error("[getChunkingStats] Error:", error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get chunking statistics',
             error: error.message
         });
     }

@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, FileText, X, Loader, Eye } from 'lucide-react';
+import toast from 'react-hot-toast';
 import useChatStore from '../utils/chatStore';
 
 const PDFUploader = () => {
@@ -20,10 +21,34 @@ const PDFUploader = () => {
     return `${name}...${extension}`;
   };
 
-  const onDrop = useCallback(async (acceptedFiles) => {
+  const onDrop = useCallback(async (acceptedFiles, rejectedFiles) => {
+    // Handle rejected files
+    if (rejectedFiles.length > 0) {
+      const rejection = rejectedFiles[0];
+      if (rejection.errors.some(e => e.code === 'file-too-large')) {
+        const fileSizeMB = (rejection.file.size / 1024 / 1024).toFixed(2);
+        toast.error(`File too large! Size: ${fileSizeMB}MB. Maximum allowed: 10MB`, {
+          duration: 6000,
+          icon: '⚠️',
+        });
+        return;
+      }
+      if (rejection.errors.some(e => e.code === 'file-invalid-type')) {
+        toast.error('Invalid file type! Only PDF files are allowed.', {
+          duration: 4000,
+          icon: '❌',
+        });
+        return;
+      }
+    }
+
     const file = acceptedFiles[0];
     if (file?.type === 'application/pdf' && user) {
-      await uploadPDF(file, user.id);
+      try {
+        await uploadPDF(file, user.id);
+      } catch (error) {
+        // Error handling is done in the store
+      }
     }
   }, [uploadPDF, user]);
 
@@ -35,7 +60,8 @@ const PDFUploader = () => {
     onDrop,
     accept: { 'application/pdf': ['.pdf'] },
     multiple: false,
-    disabled: isUploading
+    disabled: isUploading,
+    maxSize: 10 * 1024 * 1024, // 10MB limit
   });
 
   if (isUploading) {
@@ -61,13 +87,14 @@ const PDFUploader = () => {
       {!currentPdf ? (
         <div
           {...getRootProps()}
+          data-upload-trigger
           className={`border-2 border-dashed border-gray-600 rounded-lg p-8 text-center cursor-pointer
             ${isDragActive ? 'border-blue-500 bg-blue-500/10' : 'hover:border-blue-500 hover:bg-blue-500/5'}`}
         >
           <input {...getInputProps()} />
           <Upload className="mx-auto mb-4" size={32} />
           <p className="text-lg mb-2">Drop your PDF here, or click to select</p>
-          <p className="text-sm text-gray-400">Only PDF files are supported</p>
+          <p className="text-sm text-gray-400">Only PDF files are supported (Max: 10MB)</p>
         </div>
       ) : (
         <div className=" w-[100%]">

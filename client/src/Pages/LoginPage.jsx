@@ -39,9 +39,24 @@ const AuthPage = () => {
                 throw new Error(data.message || 'Authentication failed');
             }
 
+            // Validate response data
+            if (!data.token || !data.user) {
+                throw new Error('Invalid server response: missing token or user data');
+            }
+
+            console.log('✅ Authentication successful');
+            console.log('🔐 Token received:', data.token.substring(0, 20) + '...');
+            console.log('👤 User data:', { id: data.user.id, email: data.user.email });
+
             // Store token in localStorage
             localStorage.setItem('token', data.token);
             localStorage.setItem('user', JSON.stringify(data.user));
+
+            // Verify storage
+            const storedToken = localStorage.getItem('token');
+            const storedUser = localStorage.getItem('user');
+            console.log('💾 Token stored successfully:', !!storedToken);
+            console.log('💾 User stored successfully:', !!storedUser);
 
             // Redirect to chat page
             navigate('/chat');
@@ -95,7 +110,7 @@ const AuthPage = () => {
                                         type="text"
                                         name="username"
                                         placeholder="Full Name"
-                                        value={formData.name}
+                                        value={formData.username}
                                         onChange={handleInputChange}
                                         className="w-full bg-gray-700 rounded-lg pl-12 pr-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     />

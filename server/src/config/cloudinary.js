@@ -47,7 +47,13 @@ const uploadPDFWithErrorHandling = (req, res, next) => {
                 if (err.code === 'LIMIT_FILE_SIZE') {
                     return res.status(413).json({
                         success: false,
-                        error: 'File is too large. Maximum size is 10MB.'
+                        error: `File is too large. Maximum size allowed is 10MB. Your file is ${(req.file?.size / 1024 / 1024).toFixed(2)}MB.`
+                    });
+                }
+                if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Unexpected file field. Please upload a PDF file.'
                     });
                 }
             }
@@ -131,8 +137,53 @@ const uploadPDFToCloudinary = async (file) => {
     }
 };
 
+// Function to delete PDF from Cloudinary
+const deleteFromCloudinary = async (publicId) => {
+    try {
+        console.log(`[deleteFromCloudinary] Attempting to delete: ${publicId}`);
+        
+        // Verify credentials are set
+        if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+            console.error('Cloudinary credentials missing or incomplete');
+            throw new Error('Cloudinary credentials are not properly configured');
+        }
+
+        // Delete the resource
+        const result = await cloudinary.uploader.destroy(publicId, {
+            resource_type: "image" // Use "image" since PDFs are stored as image type
+        });
+
+        console.log(`[deleteFromCloudinary] Delete result:`, result);
+
+        if (result.result === 'ok') {
+            return {
+                success: true,
+                message: 'File deleted successfully from Cloudinary'
+            };
+        } else if (result.result === 'not found') {
+            console.warn(`[deleteFromCloudinary] File not found in Cloudinary: ${publicId}`);
+            return {
+                success: true,
+                message: 'File was already deleted or not found'
+            };
+        } else {
+            return {
+                success: false,
+                error: `Delete failed with result: ${result.result}`
+            };
+        }
+    } catch (error) {
+        console.error('[deleteFromCloudinary] Error deleting from Cloudinary:', error);
+        return {
+            success: false,
+            error: error.message || 'Delete from Cloudinary failed'
+        };
+    }
+};
+
 export {
     uploadPDF,
     uploadPDFWithErrorHandling,
-    uploadPDFToCloudinary
+    uploadPDFToCloudinary,
+    deleteFromCloudinary
 };
