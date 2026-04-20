@@ -1,42 +1,6 @@
 import { create } from 'zustand';
-import axios from 'axios';
+import api from './api.js';
 import toast from 'react-hot-toast';
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000',
-  headers: {
-    'Content-Type': 'application/json',
-  }
-});
-
-// Add auth token to all requests
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-    console.log('🔐 Token being sent:', token.substring(0, 20) + '...');
-  } else {
-    console.warn('⚠️ No token found in localStorage');
-  }
-  return config;
-});
-
-// Add response interceptor for better error handling
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      console.error('🚫 Authentication failed - redirecting to login');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
-
-const storedUser = localStorage.getItem('user');
-const userId = storedUser ? JSON.parse(storedUser).id : null;
 
 const useChatStore = create((set, get) => ({
   messages: [],
@@ -45,12 +9,12 @@ const useChatStore = create((set, get) => ({
   isLoading: false,
   isUploading: false,
   uploadProgress: 0,
-  chatHistory: {}, // Add this to store chat history
+  chatHistory: {},
 
-  fetchPDFs: async (userId) => {
+  fetchPDFs: async () => {
     try {
       set({ isLoading: true });
-      const { data } = await api.get(`/api/pdfs/user/${userId}/pdfs`);
+      const { data } = await api.get('/api/pdfs/me');
 
       // Update both pdfs and chatHistory from the response
       const chatHistory = {};
@@ -69,7 +33,6 @@ const useChatStore = create((set, get) => ({
     }
   },
 
-  // Add this new method to update chat history
   updateChatHistory: (pdfName, message) => {
     set(state => ({
       chatHistory: {
@@ -79,7 +42,7 @@ const useChatStore = create((set, get) => ({
     }));
   },
 
-  uploadPDF: async (file, userId) => {
+  uploadPDF: async (file) => {
     try {
       // Check file size before upload (10MB limit)
       const maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
@@ -100,9 +63,7 @@ const useChatStore = create((set, get) => ({
       });
 
       const formData = new FormData();
-      // Change field name to 'pdf' to match server configuration
       formData.append('pdf', file);
-      formData.append('userId', userId);
       formData.append('title', file.name);
 
       const { data } = await api.post('/api/pdfs/upload', formData, {
@@ -137,13 +98,13 @@ const useChatStore = create((set, get) => ({
       console.error('Failed to upload PDF:', error.response?.data || error.message);
       
       // Handle different types of errors
-      if (error.response?.status === 413 || error.response?.data?.error?.includes('too large')) {
+      if (error.response?.status === 413 || error.response?.data?.message?.includes('too large')) {
         toast.error('File too large! Maximum size allowed is 10MB', {
           duration: 6000,
           icon: '⚠️',
         });
       } else if (error.response?.status === 400) {
-        const errorMessage = error.response.data?.error || error.response.data?.message || 'Upload failed';
+        const errorMessage = error.response.data?.message || 'Upload failed';
         toast.error(errorMessage, {
           duration: 5000,
           icon: '❌',
@@ -185,16 +146,7 @@ const useChatStore = create((set, get) => ({
   fetchPDFChats: async (pdfId) => {
     try {
       set({ isLoading: true });
-      const storedUser = localStorage.getItem('user');
-      const userId = storedUser ? JSON.parse(storedUser).id : null;
-
-      if (!userId) {
-        throw new Error('User not authenticated');
-      }
-
-      const { data } = await api.get(`/api/chats/${pdfId}/chats`, {
-        params: { userId }
-      });
+      const { data } = await api.get(`/api/chats/${pdfId}`);
 
       if (data.success && Array.isArray(data.data)) {
         const formattedChats = data.data.map(chat => [
@@ -219,8 +171,7 @@ const useChatStore = create((set, get) => ({
     }
   },
 
-  // Modify askQuestion to update chat history
-  askQuestion: async (question, userId) => {
+  askQuestion: async (question) => {
     const { currentPdf } = get();
     if (!currentPdf) return;
 
@@ -232,7 +183,7 @@ const useChatStore = create((set, get) => ({
         messages: [...state.messages, userMessage]
       }));
 
-      const { data } = await api.post(`/api/pdfs/${currentPdf._id}/ask`, { question, userId });
+      const { data } = await api.post(`/api/pdfs/${currentPdf._id}/ask`, { question });
       const botMessage = { 
         type: 'bot', 
         content: data.data.response,
@@ -256,15 +207,9 @@ const useChatStore = create((set, get) => ({
 
   updateNotes: async (pdfId, notes) => {
     try {
-      const storedUser = localStorage.getItem('user');
-      const userId = storedUser ? JSON.parse(storedUser).id : null;
+      if (!pdfId) return;
 
-      if (!userId || !pdfId) return;
-
-      const { data } = await api.put(`/api/pdfs/${pdfId}/notes`, {
-        notes,
-        userId
-      });
+      const { data } = await api.put(`/api/pdfs/${pdfId}/notes`, { notes });
 
       if (data.success) {
         set(state => ({
@@ -280,14 +225,9 @@ const useChatStore = create((set, get) => ({
 
   getNotes: async (pdfId) => {
     try {
-      const storedUser = localStorage.getItem('user');
-      const userId = storedUser ? JSON.parse(storedUser).id : null;
+      if (!pdfId) return null;
 
-      if (!userId || !pdfId) return null;
-
-      const { data } = await api.get(`/api/pdfs/${pdfId}/notes`, {
-        params: { userId } // Changed from data to params
-      });
+      const { data } = await api.get(`/api/pdfs/${pdfId}/notes`);
 
       return data.success ? data.data.notes : null;
     } catch (error) {

@@ -110,7 +110,7 @@ function App() {
     useEffect(() => {
         // Only fetch PDFs if we don't have them already and not currently loading
         if (userId && pdfs.length === 0 && !isLoading) {
-            fetchPDFs(userId);
+            fetchPDFs();
         }
     }, [userId, fetchPDFs, pdfs.length, isLoading]);
 
@@ -131,9 +131,9 @@ function App() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!inputMessage.trim() || !currentPdf || isUploading || !userId) return;
+        if (!inputMessage.trim() || !currentPdf || isUploading) return;
 
-        await sendQuestion(inputMessage, userId);
+        await sendQuestion(inputMessage);
         setInputMessage('');
     };
 

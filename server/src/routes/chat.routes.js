@@ -10,7 +10,7 @@ const router = express.Router();
 // Protect all routes
 router.use(authMiddleware);
 
-router.get('/:pdfId/chats', getPDFChats);
+router.get('/:pdfId', getPDFChats);
 router.delete('/chats/:chatId', deleteChat);
 
 export default router;

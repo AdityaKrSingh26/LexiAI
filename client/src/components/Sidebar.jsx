@@ -32,7 +32,7 @@ const Sidebar = ({ isOpen, toggleSidebar, userId }) => {
   useEffect(() => {
     // Only fetch PDFs if we don't have them already and not currently loading
     if (userId && pdfs.length === 0 && !isLoading) {
-      fetchPDFs(userId);
+      fetchPDFs();
     }
   }, [fetchPDFs, userId, pdfs.length, isLoading]);
 
@@ -68,9 +68,7 @@ const Sidebar = ({ isOpen, toggleSidebar, userId }) => {
     
     try {
       await deletePDF(pdfId);
-      if (userId) {
-        fetchPDFs(userId);
-      }
+      fetchPDFs();
       // Show success message
       alert(`"${pdfToDelete?.title || 'Document'}" has been successfully deleted.`);
     } catch (error) {

@@ -51,7 +51,6 @@ export const createCollection = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error creating collection',
-            error: error.message
         });
     }
 };
@@ -92,7 +91,6 @@ export const getUserCollections = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error fetching collections',
-            error: error.message
         });
     }
 };
@@ -134,7 +132,6 @@ export const getCollectionById = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error fetching collection',
-            error: error.message
         });
     }
 };
@@ -187,7 +184,6 @@ export const updateCollection = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error updating collection',
-            error: error.message
         });
     }
 };
@@ -247,7 +243,6 @@ export const deleteCollection = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error deleting collection',
-            error: error.message
         });
     }
 };
@@ -317,7 +312,6 @@ export const addDocumentsToCollection = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error adding documents to collection',
-            error: error.message
         });
     }
 };
@@ -370,7 +364,6 @@ export const removeDocumentsFromCollection = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error removing documents from collection',
-            error: error.message
         });
     }
 };
@@ -434,7 +427,6 @@ export const shareCollection = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error sharing collection',
-            error: error.message
         });
     }
 };

@@ -1,24 +1,7 @@
 import React, { useState } from 'react';
 import { Search, RefreshCw, BarChart3, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
-import axios from 'axios';
-
-// Create API instance similar to chatStore
-const api = axios.create({
-  baseURL: import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000',
-  headers: {
-    'Content-Type': 'application/json',
-  }
-});
-
-// Add auth token to all requests
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import api from '../utils/api.js';
 
 const SemanticSearchInfo = ({ currentPdf }) => {
   const [isRechunking, setIsRechunking] = useState(false);

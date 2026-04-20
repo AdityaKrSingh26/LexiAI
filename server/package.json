@@ -19,7 +19,7 @@
     "cloudinary": "^1.41.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "dotenv": "^8.6.0",
+    "dotenv": "^16.4.7",
     "express": "^4.17.1",
     "express-rate-limit": "^8.1.0",
     "helmet": "^8.1.0",

@@ -119,7 +119,6 @@ export const register = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error creating user',
-            error: error.message
         });
     }
 };
@@ -191,7 +190,6 @@ export const login = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error logging in',
-            error: error.message
         });
     }
 };
@@ -215,7 +213,6 @@ export const logout = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error logging out',
-            error: error.message
         });
     }
 };

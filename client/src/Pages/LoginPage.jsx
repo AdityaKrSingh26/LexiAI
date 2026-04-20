@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, Mail, Lock, User, ArrowRight } from 'lucide-react';
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+import api from '../utils/api.js';
 
 const AuthPage = () => {
     const navigate = useNavigate();
@@ -21,49 +20,23 @@ const AuthPage = () => {
 
         try {
             const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
-            const response = await fetch(`${BACKEND_URL}${endpoint}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    email: formData.email,
-                    password: formData.password,
-                    username: formData.username
-                }),
+            const { data } = await api.post(endpoint, {
+                email: formData.email,
+                password: formData.password,
+                username: formData.username
             });
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || 'Authentication failed');
-            }
-
-            // Validate response data
             if (!data.token || !data.user) {
                 throw new Error('Invalid server response: missing token or user data');
             }
 
-            console.log('✅ Authentication successful');
-            console.log('🔐 Token received:', data.token.substring(0, 20) + '...');
-            console.log('👤 User data:', { id: data.user.id, email: data.user.email });
-
-            // Store token in localStorage
             localStorage.setItem('token', data.token);
             localStorage.setItem('user', JSON.stringify(data.user));
 
-            // Verify storage
-            const storedToken = localStorage.getItem('token');
-            const storedUser = localStorage.getItem('user');
-            console.log('💾 Token stored successfully:', !!storedToken);
-            console.log('💾 User stored successfully:', !!storedUser);
-
-            // Redirect to chat page
             navigate('/chat');
         } catch (error) {
-            console.error('Auth error:', error);
-            setError(error.message);
-            console.error('Auth error:', error);
+            const msg = error.response?.data?.message || error.message || 'Authentication failed';
+            setError(msg);
         }
     };
 

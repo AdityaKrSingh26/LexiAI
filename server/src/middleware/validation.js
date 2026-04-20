@@ -35,8 +35,7 @@ export const validateLogin = (req, res, next) => {
 
 export const validateQuestion = (req, res, next) => {
     const schema = Joi.object({
-        question: Joi.string().min(1).max(1000).required(),
-        userId: Joi.string().required()
+        question: Joi.string().min(1).max(1000).required()
     });
 
     const { error } = schema.validate(req.body);

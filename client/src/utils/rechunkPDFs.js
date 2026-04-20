@@ -1,34 +1,18 @@
-// Test script to trigger re-chunking of existing PDFs
-// This can be run manually to update existing PDFs with chunking capability
+import api from './api.js';
 
 const rechunkExistingPDFs = async () => {
     try {
-        const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-        const response = await fetch(`${backendURL}/api/pdfs/rechunk`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-        });
+        const { data } = await api.post('/api/pdfs/rechunk');
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        
-        if (result.success) {
-            console.log('✅ Re-chunking completed:', result.message);
-            console.log(`📊 Processed: ${result.processed}, Errors: ${result.errors}, Total: ${result.total}`);
+        if (data.success) {
+            console.log('Re-chunking completed:', data.message);
+            console.log(`Processed: ${data.processed}, Errors: ${data.errors}, Total: ${data.total}`);
         } else {
-            console.error('❌ Re-chunking failed:', result.message);
+            console.error('Re-chunking failed:', data.message);
         }
     } catch (error) {
-        console.error('❌ Error:', error);
+        console.error('Error during re-chunking:', error.response?.data?.message || error.message);
     }
 };
 
-// Usage: Copy and paste this function into browser console
-// Or call it from your frontend when needed
 export { rechunkExistingPDFs };

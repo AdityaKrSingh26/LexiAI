@@ -9,9 +9,20 @@ const app = express();
 // Security headers
 app.use(helmet());
 
-// CORS configuration - Allow all origins
+// CORS configuration - Allowlist specific origins
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',')
+    : ['http://localhost:5173', 'http://localhost:3000'];
+
 const corsOptions = {
-    origin: true, // Allow all origins
+    origin: (origin, callback) => {
+        // Allow requests with no origin (e.g. curl, server-to-server)
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error(`CORS: Origin '${origin}' not allowed`));
+        }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']

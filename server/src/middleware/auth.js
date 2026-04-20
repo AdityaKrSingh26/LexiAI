@@ -31,7 +31,7 @@ const authMiddleware = (req, res, next) => {
     jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
         if (err) {
             console.error('🚫 Token verification failed:', err.message);
-            return res.status(403).json({ 
+            return res.status(401).json({ 
                 success: false,
                 message: 'Failed to authenticate token' 
             });

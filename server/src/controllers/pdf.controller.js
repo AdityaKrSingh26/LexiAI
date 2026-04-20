@@ -11,6 +11,9 @@ import { getRelevantContext, preprocessPDFContent } from '../utils/textChunking.
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
+// Max characters to send to Gemini in a single prompt (avoids context window overflow)
+const MAX_PROMPT_CHARS = 30000;
+
 // Upload PDF
 export const uploadPDF = async (req, res) => {
     console.log("[uploadPDF] Starting PDF upload process");
@@ -80,10 +83,10 @@ export const uploadPDF = async (req, res) => {
         }
 
         const pdf = await PDF.create({
-            user: req.body.userId,
+            user: req.user._id,
             title: req.body.title || req.file.originalname,
             originalFilename: req.file.originalname,
-            url: result.url,
+            url: result.secure_url || result.url,
             textContent: pdfContent,
             chunks: chunks,
             chunkingEnabled: true,
@@ -116,7 +119,6 @@ export const uploadPDF = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to upload PDF',
-            error: error.message
         });
     }
 };
@@ -133,12 +135,12 @@ export const getPDFById = async (req, res) => {
             });
         }
 
-        const userId = req.body.userId || req.user?._id;
+        const userId = req.user._id;
         if (!userId) {
             console.error("[getPDFById] No user ID provided");
-            return res.status(400).json({
+            return res.status(401).json({
                 success: false,
-                message: 'User ID is required'
+                message: 'User authentication required'
             });
         }
 
@@ -172,7 +174,6 @@ export const getPDFById = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to retrieve PDF',
-            error: error.message
         });
     }
 };
@@ -181,24 +182,13 @@ export const getPDFById = async (req, res) => {
 export const getUserPDFs = async (req, res) => {
     console.log("[getUserPDFs] Fetching PDFs with chat counts");
     try {
-        const userId = req.body.userId || req.params.userId || req.user?._id;
+        const userId = req.user._id;
 
         if (!userId) {
             console.error("[getUserPDFs] No user ID provided");
-            return res.status(400).json({
+            return res.status(401).json({
                 success: false,
-                message: 'User ID is required'
-            });
-        }
-
-        // Check if user exists
-        console.log(`[getUserPDFs] Verifying user exists: ${userId}`);
-        const user = await User.findById(userId);
-        if (!user) {
-            console.error(`[getUserPDFs] User not found with ID: ${userId}`);
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
+                message: 'User authentication required'
             });
         }
 
@@ -224,7 +214,7 @@ export const getUserPDFs = async (req, res) => {
         });
     } catch (error) {
         console.error("[getUserPDFs] Error fetching user PDFs:", {
-            userId: req.body.userId || req.params.userId || req.user?._id,
+            userId: req.user?._id,
             message: error.message,
             stack: error.stack,
             name: error.name
@@ -233,7 +223,6 @@ export const getUserPDFs = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error fetching user PDFs',
-            error: error.message
         });
     }
 };
@@ -338,7 +327,6 @@ export const deletePDF = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to delete PDF',
-            error: error.message
         });
     }
 };
@@ -386,7 +374,10 @@ export const summarizePDF = async (req, res) => {
         }
 
         console.log(`[summarizePDF] Sending prompt to Gemini AI for PDF: ${pdf._id}`);
-        const prompt = `Please provide a comprehensive summary of the following text: ${pdf.textContent}`;
+        const truncatedContent = pdf.textContent.length > MAX_PROMPT_CHARS
+            ? pdf.textContent.substring(0, MAX_PROMPT_CHARS) + '\n[Note: Document truncated for processing]'
+            : pdf.textContent;
+        const prompt = `Please provide a comprehensive summary of the following text: ${truncatedContent}`;
 
         try {
             const result = await model.generateContent(prompt);
@@ -428,7 +419,6 @@ export const summarizePDF = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to summarize PDF',
-            error: error.message
         });
     }
 };
@@ -445,15 +435,8 @@ export const askQuestion = async (req, res) => {
             });
         }
 
-        const { question, userId } = req.body;
-        console.log(userId)
-        if (!userId) {
-            console.error("[askQuestion] No user ID available");
-            return res.status(401).json({
-                success: false,
-                message: 'User authentication required'
-            });
-        }
+        const { question } = req.body;
+        const userId = req.user._id;
 
         if (!question || question.trim() === '') {
             console.error("[askQuestion] No question provided in request body");
@@ -495,15 +478,6 @@ export const askQuestion = async (req, res) => {
             // Use semantic search to find relevant chunks
             if (pdf.chunkingEnabled && pdf.chunks && pdf.chunks.length > 0) {
                 console.log(`[askQuestion] Using pre-stored chunks (${pdf.chunks.length} available) for semantic search`);
-                
-                // Convert stored chunks back to the format expected by findRelevantChunks
-                const chunksForSearch = pdf.chunks.map(chunk => ({
-                    text: chunk.text,
-                    startIndex: chunk.startIndex,
-                    endIndex: chunk.endIndex,
-                    length: chunk.length,
-                    chunkId: chunk.chunkId
-                }));
 
                 const relevantContext = await getRelevantContext(question, pdf.textContent, {
                     maxChunkSize: 2000,
@@ -611,7 +585,6 @@ ANSWER:`;
         res.status(500).json({
             success: false,
             message: 'Failed to process question',
-            error: error.message
         });
     }
 };
@@ -661,7 +634,10 @@ export const generatePDFFlow = async (req, res) => {
         console.log(`[generatePDFFlow] Generating flow for PDF: ${pdf._id}`);
 
         try {
-            const prompt = `Generate a structured flow or outline of the main concepts and their relationships from the following text: ${pdf.textContent}`;
+            const truncatedContent = pdf.textContent.length > MAX_PROMPT_CHARS
+                ? pdf.textContent.substring(0, MAX_PROMPT_CHARS) + '\n[Note: Document truncated for processing]'
+                : pdf.textContent;
+            const prompt = `Generate a structured flow or outline of the main concepts and their relationships from the following text: ${truncatedContent}`;
             const result = await model.generateContent(prompt);
             const flow = result.response.text();
 
@@ -697,7 +673,6 @@ export const generatePDFFlow = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to generate PDF flow',
-            error: error.message
         });
     }
 };
@@ -706,21 +681,13 @@ export const updateNotes = async (req, res) => {
     console.log("[updateNotes] Updating notes for PDF:", req.params.id);
     try {
         const { notes } = req.body;
-        const { userId } = req.body;
+        const userId = req.user._id;
 
         if (!req.params.id) {
             console.error("[updateNotes] No PDF ID provided");
             return res.status(400).json({
                 success: false,
                 message: 'PDF ID is required'
-            });
-        }
-
-        if (!userId) {
-            console.error("[updateNotes] No user ID available");
-            return res.status(401).json({
-                success: false,
-                message: 'User authentication required'
             });
         }
 
@@ -759,7 +726,6 @@ export const updateNotes = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to update notes',
-            error: error.message
         });
     }
 };
@@ -768,21 +734,13 @@ export const updateNotes = async (req, res) => {
 export const getNotes = async (req, res) => {
     console.log("[getNotes] Fetching notes for PDF:", req.params.id);
     try {
-        const userId = req.query.userId || req.body.userId; // Check both query and body
+        const userId = req.user._id;
 
         if (!req.params.id) {
             console.error("[getNotes] No PDF ID provided");
             return res.status(400).json({
                 success: false,
                 message: 'PDF ID is required'
-            });
-        }
-
-        if (!userId) {
-            console.error("[getNotes] No user ID available");
-            return res.status(401).json({
-                success: false,
-                message: 'User authentication required'
             });
         }
 
@@ -818,7 +776,6 @@ export const getNotes = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to fetch notes',
-            error: error.message
         });
     }
 };
@@ -901,7 +858,6 @@ export const searchDocuments = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error searching documents',
-            error: error.message
         });
     }
 };
@@ -931,9 +887,18 @@ export const bulkOperations = async (req, res) => {
 
         let result;
         switch (operation) {
-            case 'delete':
+            case 'delete': {
+                // Clean up associated chats
+                await Chat.deleteMany({ pdfId: { $in: documentIds } });
+                // Remove from all collections
+                const { default: Collection } = await import('../models/collection.model.js');
+                await Collection.updateMany(
+                    { documents: { $in: documentIds } },
+                    { $pull: { documents: { $in: documentIds } } }
+                );
                 result = await PDF.deleteMany({ _id: { $in: documentIds } });
                 break;
+            }
             case 'addTags':
                 result = await PDF.updateMany(
                     { _id: { $in: documentIds } },
@@ -989,7 +954,6 @@ export const bulkOperations = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error in bulk operation',
-            error: error.message
         });
     }
 };
@@ -1053,7 +1017,6 @@ export const shareDocument = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error sharing document',
-            error: error.message
         });
     }
 };
@@ -1095,7 +1058,6 @@ export const getDocumentVersions = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error getting document versions',
-            error: error.message
         });
     }
 };
@@ -1135,7 +1097,6 @@ export const toggleFavorite = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error toggling favorite',
-            error: error.message
         });
     }
 };
@@ -1221,7 +1182,6 @@ export const getUserAnalytics = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error getting analytics',
-            error: error.message
         });
     }
 };
@@ -1287,7 +1247,6 @@ export const updateFileSizes = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to update file sizes',
-            error: error.message
         });
     }
 };
@@ -1360,7 +1319,6 @@ export const rechunkPDFs = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to re-chunk PDFs',
-            error: error.message
         });
     }
 };
@@ -1422,7 +1380,6 @@ export const getChunkingStats = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to get chunking statistics',
-            error: error.message
         });
     }
 };

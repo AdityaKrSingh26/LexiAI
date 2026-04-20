@@ -45,7 +45,7 @@ const PDFUploader = () => {
     const file = acceptedFiles[0];
     if (file?.type === 'application/pdf' && user) {
       try {
-        await uploadPDF(file, user.id);
+        await uploadPDF(file);
       } catch (error) {
         // Error handling is done in the store
       }

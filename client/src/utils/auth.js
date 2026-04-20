@@ -10,45 +10,38 @@ export const logout = () => {
     localStorage.removeItem('user');
 };
 
+/**
+ * Decode JWT expiry from the payload (client-side only, no signature verification).
+ * Returns true if the token is not yet expired.
+ */
+const isTokenExpired = (token) => {
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (!payload.exp) return false; // no expiry = treat as valid
+        return Date.now() >= payload.exp * 1000;
+    } catch {
+        return true; // malformed token → treat as expired
+    }
+};
+
 export const isAuthenticated = () => {
     const token = getAuthToken();
     const user = getUser();
     
-    // Basic validation
-    if (!token || !user) {
-        return false;
-    }
+    if (!token || !user) return false;
     
-    // Check if token has proper JWT format (3 parts separated by dots)
+    // Verify JWT format (3 parts separated by dots)
     if (token.split('.').length !== 3) {
         console.warn('⚠️ Invalid token format');
         return false;
     }
-    
-    return true;
-};
 
-// Validate and refresh token if needed
-export const validateToken = async () => {
-    const token = getAuthToken();
-    if (!token) return false;
-    
-    try {
-        const response = await fetch('/api/auth/validate', {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        if (!response.ok) {
-            logout();
-            return false;
-        }
-        
-        return true;
-    } catch (error) {
-        console.error('Token validation failed:', error);
+    // Check token expiry client-side
+    if (isTokenExpired(token)) {
+        console.warn('⚠️ Token has expired');
         logout();
         return false;
     }
+    
+    return true;
 };

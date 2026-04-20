@@ -14,7 +14,7 @@ const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
         folder: 'pdfs',
-        resource_type: 'image', // Change from 'raw' to 'image'
+        resource_type: 'raw',          // correct type for binary files like PDF
         allowed_formats: ['pdf'],
         access_mode: 'public',
         public_id: (req, file) => `pdf-${Date.now()}-${file.originalname}`
@@ -80,6 +80,7 @@ const uploadPDFToCloudinary = async (file) => {
             return {
                 success: true,
                 url: file.path,
+                secure_url: file.path,
                 public_id: file.filename || `pdf-${Date.now()}-${file.originalname}`,
                 format: 'pdf',
                 created_at: new Date().toISOString()
@@ -102,7 +103,7 @@ const uploadPDFToCloudinary = async (file) => {
 
         // Upload with detailed options
         const result = await cloudinary.uploader.upload(file.path, {
-            resource_type: "image", // Change from "raw" to "image"
+            resource_type: "raw",       // correct type for PDF files
             folder: "pdfs",
             use_filename: true,
             unique_filename: false,
@@ -150,7 +151,7 @@ const deleteFromCloudinary = async (publicId) => {
 
         // Delete the resource
         const result = await cloudinary.uploader.destroy(publicId, {
-            resource_type: "image" // Use "image" since PDFs are stored as image type
+            resource_type: "raw"  // PDFs stored as raw type
         });
 
         console.log(`[deleteFromCloudinary] Delete result:`, result);
