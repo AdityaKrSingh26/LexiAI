@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Menu,
   X,
@@ -24,17 +24,9 @@ const Sidebar = ({ isOpen, toggleSidebar, userId }) => {
     fetchPDFs,
     setCurrentPdf,
     deletePDF,
-    clearChat,
-    startNewChatWithCurrentPdf,
     isLoading
   } = useChatStore();
 
-  useEffect(() => {
-    // Only fetch PDFs if we don't have them already and not currently loading
-    if (userId && pdfs.length === 0 && !isLoading) {
-      fetchPDFs();
-    }
-  }, [fetchPDFs, userId, pdfs.length, isLoading]);
 
   const handleNewChat = () => {
     // Clear current PDF and messages to start completely fresh

@@ -106,13 +106,12 @@ function App() {
         }
     }, [searchParams, userId, pdfs, currentPdf, setCurrentPdf, setSearchParams, uploadTriggered]);
 
-    // Load PDFs when user is authenticated
+    // Load PDFs once when user is authenticated
     useEffect(() => {
-        // Only fetch PDFs if we don't have them already and not currently loading
-        if (userId && pdfs.length === 0 && !isLoading) {
+        if (userId) {
             fetchPDFs();
         }
-    }, [userId, fetchPDFs, pdfs.length, isLoading]);
+    }, [userId]);
 
     // Reset upload trigger when component unmounts or user changes
     useEffect(() => {

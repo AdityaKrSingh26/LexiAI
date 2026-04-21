@@ -32,9 +32,6 @@ function App() {
     }
 
     checkBackendHealth()
-    // Poll backend health every 30 seconds
-    const interval = setInterval(checkBackendHealth, 30000)
-    return () => clearInterval(interval)
   }, [])
 
   if (isLoading) {

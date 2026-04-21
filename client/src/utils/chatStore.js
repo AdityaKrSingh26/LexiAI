@@ -12,8 +12,9 @@ const useChatStore = create((set, get) => ({
   chatHistory: {},
 
   fetchPDFs: async () => {
+    if (get().isLoading) return;
+    set({ isLoading: true });
     try {
-      set({ isLoading: true });
       const { data } = await api.get('/api/pdfs/me');
 
       // Update both pdfs and chatHistory from the response

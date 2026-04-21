@@ -2,16 +2,12 @@ import { uploadPDFToCloudinary } from '../config/cloudinary.js';
 import PDF from '../models/pdf.model.js';
 import User from '../models/user.model.js';
 import Chat from '../models/chat.model.js';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import pdfParse from 'pdf-parse';
 import { v2 as cloudinary } from 'cloudinary';
 import { getRelevantContext, preprocessPDFContent } from '../utils/textChunking.js';
+import { generateText } from '../utils/aiClient.js';
 
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-// Max characters to send to Gemini in a single prompt (avoids context window overflow)
+// Max characters to send in a single prompt (avoids context window overflow)
 const MAX_PROMPT_CHARS = 30000;
 
 // Upload PDF
@@ -373,15 +369,14 @@ export const summarizePDF = async (req, res) => {
             });
         }
 
-        console.log(`[summarizePDF] Sending prompt to Gemini AI for PDF: ${pdf._id}`);
+        console.log(`[summarizePDF] Sending prompt to AI for PDF: ${pdf._id}`);
         const truncatedContent = pdf.textContent.length > MAX_PROMPT_CHARS
             ? pdf.textContent.substring(0, MAX_PROMPT_CHARS) + '\n[Note: Document truncated for processing]'
             : pdf.textContent;
         const prompt = `Please provide a comprehensive summary of the following text: ${truncatedContent}`;
 
         try {
-            const result = await model.generateContent(prompt);
-            const summary = result.response.text();
+            const summary = await generateText(prompt, 1024);
 
             console.log(`[summarizePDF] Successfully generated summary for PDF: ${pdf._id}`);
 
@@ -479,7 +474,7 @@ export const askQuestion = async (req, res) => {
             if (pdf.chunkingEnabled && pdf.chunks && pdf.chunks.length > 0) {
                 console.log(`[askQuestion] Using pre-stored chunks (${pdf.chunks.length} available) for semantic search`);
 
-                const relevantContext = await getRelevantContext(question, pdf.textContent, {
+                const relevantContext = getRelevantContext(question, pdf.textContent, {
                     maxChunkSize: 2000,
                     overlap: 200,
                     topK: 3,
@@ -526,8 +521,7 @@ INSTRUCTIONS:
 
 ANSWER:`;
 
-            const result = await model.generateContent(prompt);
-            const response = result.response.text();
+            const response = await generateText(prompt, 1024);
 
             console.log(`[askQuestion] Successfully generated response for question on PDF: ${pdf._id}`);
             console.log(`[askQuestion] Context used: ${metadata.contextLength} characters from ${metadata.selectedChunks} chunks`);
@@ -638,8 +632,7 @@ export const generatePDFFlow = async (req, res) => {
                 ? pdf.textContent.substring(0, MAX_PROMPT_CHARS) + '\n[Note: Document truncated for processing]'
                 : pdf.textContent;
             const prompt = `Generate a structured flow or outline of the main concepts and their relationships from the following text: ${truncatedContent}`;
-            const result = await model.generateContent(prompt);
-            const flow = result.response.text();
+            const flow = await generateText(prompt, 1024);
 
             console.log(`[generatePDFFlow] Successfully generated flow for PDF: ${pdf._id}`);
 

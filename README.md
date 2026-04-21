@@ -27,7 +27,7 @@ LexiAI is an intelligent PDF assistant that helps you work smarter with document
 - **Frontend**: React.js, TailwindCSS, Vite  
 - **Backend**: Express.js, Node.js  
 - **Database**: MongoDB  
-- **AI**: Google Gemini AI  
+- **AI**: Groq (Llama 3.3 70B)  
 - **File Storage**: Cloudinary  
 - **Authentication**: JWT Tokens  
 
@@ -60,13 +60,26 @@ npm install
 
 Create a `.env` file in the server directory:
 ```
-MONGODB_URI=your_mongodb_connection_string
-GEMINI_API_KEY=your_gemini_api_key
+MONGODB_URL=your_mongodb_connection_string
+GROQ_API_KEY=your_groq_api_key
 CLOUDINARY_CLOUD_NAME=your_cloudinary_name
 CLOUDINARY_API_KEY=your_cloudinary_key
 CLOUDINARY_API_SECRET=your_cloudinary_secret
 JWT_SECRET=your_jwt_secret
+PORT=5000
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 ```
+
+#### Getting a Groq API Key (free)
+
+LexiAI uses [Groq](https://groq.com) to power AI responses — it's free with no credit card required.
+
+1. Go to [console.groq.com](https://console.groq.com)
+2. Sign in with Google or GitHub
+3. Navigate to **API Keys** → **Create API Key**
+4. Copy the key (starts with `gsk_`) and paste it as `GROQ_API_KEY` in your `.env`
+
+Free tier includes 6,000 requests/day running **Llama 3.3 70B** — more than enough for personal use.
 
 Start the server:
 ```sh
@@ -121,7 +134,7 @@ The app will be running at `http://localhost:5173`
 ## What Makes This Project Special
 
 - **Full-Stack Development** – Built from scratch with modern React frontend and Express.js backend. Shows proficiency in both client and server-side development.
-- **AI Integration** – Implemented Google Gemini AI for document querying. Demonstrates ability to work with AI APIs and handle complex data processing.
+- **AI Integration** – Integrated Groq's Llama 3.3 70B for fast, free document querying. Demonstrates ability to work with AI APIs and handle complex data processing.
 - **Database Design** – Designed MongoDB schemas for users, documents, chats, and collections. Shows understanding of NoSQL database architecture.
 - **File Handling** – Implemented secure file upload, processing, and storage with Cloudinary. Shows expertise in handling file operations.
 - **State Management** – Used Zustand for efficient state management across the application. Demonstrates modern React patterns.
