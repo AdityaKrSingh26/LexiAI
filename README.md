@@ -1,35 +1,35 @@
 # LexiAI – AI-Powered PDF Assistant
 
-LexiAI is an intelligent PDF assistant that lets you chat with your documents, organize them into collections, generate visual flowcharts, and take rich notes — all powered by Groq's Llama 3.3 70B model.
+LexiAI is an intelligent PDF assistant that lets you chat with your documents, organize them into collections, generate visual flowcharts, and take rich notes all powered by Groq's Llama 3.3 70B model.
 
 ## Features
 
 ### AI & Chat
-- **Streaming Chat** — Answers stream token-by-token via SSE. No waiting for full response.
-- **Cross-Document Chat** — Select up to 5 PDFs and ask one question across all of them. AI synthesizes a combined answer and cites each source document inline.
-- **Semantic Search** — PDFs are chunked (2000 chars, 200-char overlap) on upload. Questions are scored against chunks; top 3 sent as context — not naive full-document truncation.
-- **AI Auto-Tagging** — Tags generated automatically on upload using document content (fire-and-forget, non-blocking).
-- **Visual Flowcharts** — On-demand Mermaid.js diagram generation from document structure.
-- **Smart Summaries** — On-demand AI summarization of any document.
+- **Streaming Chat:** Answers stream token-by-token via SSE. No waiting for full response.
+- **Cross-Document Chat:** Select up to 5 PDFs and ask one question across all of them. AI synthesizes a combined answer and cites each source document inline.
+- **Semantic Search:** PDFs are chunked (2000 chars, 200-char overlap) on upload. Questions are scored against chunks; top 3 sent as context — not naive full-document truncation.
+- **AI Auto-Tagging:** Tags generated automatically on upload using document content (fire-and-forget, non-blocking).
+- **Visual Flowcharts:** On-demand Mermaid.js diagram generation from document structure.
+- **Smart Summaries:** On-demand AI summarization of any document.
 
 ### Document Management
-- **PDF Upload** — Drag & drop with Cloudinary storage, text extraction, and pre-chunking on upload.
-- **Collections** — Organize PDFs into color-coded collections. Navigate via `/dashboard/collection/:id`.
-- **Advanced Search** — Filter by title, tags, collection, date range, and file size with sort controls.
-- **Bulk Operations** — Delete, favorite, or remove multiple documents at once.
-- **Document Sharing** — Share documents or collections with other users (read / write / admin permissions).
-- **Favorites** — Star documents for quick access; count shown in dashboard analytics.
-- **Chat History** — All conversations saved per document, resumable anytime.
+- **PDF Upload:** Drag & drop with Cloudinary storage, text extraction, and pre-chunking on upload.
+- **Collections:** Organize PDFs into color-coded collections. Navigate via `/dashboard/collection/:id`.
+- **Advanced Search:** Filter by title, tags, collection, date range, and file size with sort controls.
+- **Bulk Operations:** Delete, favorite, or remove multiple documents at once.
+- **Document Sharing:** Share documents or collections with other users (read / write / admin permissions).
+- **Favorites:** Star documents for quick access; count shown in dashboard analytics.
+- **Chat History:** All conversations saved per document, resumable anytime.
 
 ### Notes
-- **Rich Text Editor** — TipTap with bold, italic, H2/H3, bullet/ordered lists, and code blocks.
-- **Auto-save** — Debounced 800 ms. No manual save needed.
-- **Export** — Download notes as `.md` file.
+- **Rich Text Editor:** TipTap with bold, italic, H2/H3, bullet/ordered lists, and code blocks.
+- **Auto-save:** Debounced 800 ms. No manual save needed.
+- **Export:** Download notes as `.md` file.
 
 ### Dashboard & Analytics
-- **Stats Overview** — Document count, total storage used, favorites count.
-- **Grid / List View** — Toggle between card grid and compact list for documents and collections.
-- **Tag Badges** — Document tags visible on cards for quick scanning.
+- **Stats Overview:** Document count, total storage used, favorites count.
+- **Grid / List View:** Toggle between card grid and compact list for documents and collections.
+- **Tag Badges:** Document tags visible on cards for quick scanning.
 
 ### Security & Infrastructure
 - JWT authentication + bcrypt password hashing
@@ -54,11 +54,11 @@ LexiAI is an intelligent PDF assistant that lets you chat with your documents, o
 | Auth | JWT + bcrypt |
 
 ## Screenshots
+<img width="1819" height="929" alt="image" src="https://github.com/user-attachments/assets/b0fab64b-1e38-47e6-9328-bed799260eeb" />
+<img width="1819" height="929" alt="image" src="https://github.com/user-attachments/assets/41908393-d5cb-4145-902f-2309f3fb3fe5" />
+<img width="1819" height="929" alt="image" src="https://github.com/user-attachments/assets/c75bc12f-4819-4876-8251-4afb1cf4b202" />
+<img width="1819" height="929" alt="image" src="https://github.com/user-attachments/assets/a1f0374c-4aad-4dee-b5b8-7176f815ecff" />
 
-<img width="1090" height="935" alt="image" src="https://github.com/user-attachments/assets/ca7a4b6b-a345-4df3-a426-688d1db27de2" />
-<img width="1814" height="616" alt="image" src="https://github.com/user-attachments/assets/51d22f49-0e05-4f7e-9e44-c29f15651363" />
-<img width="1916" height="947" alt="image" src="https://github.com/user-attachments/assets/8abeb417-26a5-4d9d-b4ea-bb063f8e8917" />
-<img width="1904" height="950" alt="image" src="https://github.com/user-attachments/assets/e86ec7af-3d3d-43a4-b44a-a9b27146152f" />
 
 ## Installation
 
