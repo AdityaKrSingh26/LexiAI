@@ -137,7 +137,7 @@ export function ChatInput({
 
       {/* Main input box */}
       <motion.div
-        className="relative backdrop-blur-2xl bg-white/[0.02] rounded-2xl border border-white/[0.05] shadow-2xl"
+        className="relative backdrop-blur-2xl bg-zinc-900/60 rounded-2xl border border-zinc-800/60 shadow-2xl"
         initial={{ scale: 0.99 }}
         animate={{ scale: 1 }}
         transition={{ duration: 0.2 }}
@@ -195,8 +195,8 @@ export function ChatInput({
             className={cn(
               "px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2",
               canSend
-                ? "bg-white text-[#0A0A0B] shadow-lg shadow-white/10"
-                : "bg-white/[0.05] text-white/30 cursor-not-allowed"
+                ? "bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-900/30"
+                : "bg-zinc-800/60 text-zinc-600 cursor-not-allowed"
             )}
           >
             {isLoading ? (

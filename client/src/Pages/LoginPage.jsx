@@ -1,234 +1,190 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, Mail, Lock, User, ArrowRight } from 'lucide-react';
+import { Sparkles, Mail, Lock, User, ArrowRight, ArrowLeft } from 'lucide-react';
 import api from '../utils/api.js';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
-const MONO = { fontFamily: "'JetBrains Mono', 'Courier New', monospace" };
+export default function AuthPage() {
+  const navigate = useNavigate();
+  const [isLogin, setIsLogin] = useState(true);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({ email: '', password: '', username: '' });
 
-const AuthPage = () => {
-    const navigate = useNavigate();
-    const [isLogin, setIsLogin] = useState(true);
-    const [error, setError] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [formData, setFormData] = useState({ email: '', password: '', username: '' });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+    try {
+      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
+      const { data } = await api.post(endpoint, {
+        email: formData.email,
+        password: formData.password,
+        username: formData.username,
+      });
+      if (!data.token || !data.user) throw new Error('Invalid server response');
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      navigate('/chat');
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Authentication failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
-        setIsLoading(true);
-        try {
-            const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
-            const { data } = await api.post(endpoint, {
-                email: formData.email,
-                password: formData.password,
-                username: formData.username,
-            });
-            if (!data.token || !data.user) throw new Error('Invalid server response');
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('user', JSON.stringify(data.user));
-            navigate('/chat');
-        } catch (err) {
-            setError(err.response?.data?.message || err.message || 'Authentication failed');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+  const handleInputChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
-    const handleInputChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
+  return (
+    <div className="min-h-screen bg-[#09090B] flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Glow */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-violet-600/8 blur-[100px] rounded-full" />
+      </div>
 
-    return (
-        <div
-            style={{ ...MONO, background: '#080705', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', position: 'relative', overflow: 'hidden' }}
+      <div className="relative z-10 w-full max-w-sm">
+        {/* Logo */}
+        <motion.div
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center gap-2 mb-8"
         >
-            {/* Grid bg */}
-            <div
-                style={{
-                    position: 'fixed', inset: 0, pointerEvents: 'none',
-                    backgroundImage: 'linear-gradient(#1A1508 1px, transparent 1px), linear-gradient(90deg, #1A1508 1px, transparent 1px)',
-                    backgroundSize: '48px 48px', opacity: 0.5,
-                }}
-            />
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-violet-600/20 border border-violet-500/30">
+            <Sparkles size={18} className="text-violet-400" />
+          </div>
+          <span className="text-lg font-semibold text-zinc-100 tracking-wide">LexiAI</span>
+          <p className="text-xs text-zinc-500">
+            {isLogin ? 'Sign in to continue' : 'Create your account'}
+          </p>
+        </motion.div>
 
-            <div style={{ width: '100%', maxWidth: '360px', position: 'relative', zIndex: 10 }}>
-                {/* Logo */}
-                <motion.div
-                    initial={{ opacity: 0, y: -16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    style={{ textAlign: 'center', marginBottom: '32px' }}
-                >
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                        <Terminal size={18} style={{ color: '#FFB800' }} />
-                        <span style={{ color: '#FFB800', fontSize: '16px', fontWeight: 700, letterSpacing: '0.2em' }}>LEXIAI</span>
-                    </div>
-                    <p style={{ color: '#5A4A30', fontSize: '11px', letterSpacing: '0.1em' }}>
-                        {isLogin ? 'SIGN IN TO CONTINUE' : 'CREATE YOUR ACCOUNT'}
-                    </p>
-                </motion.div>
+        {/* Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Card className="bg-zinc-900/70 border-zinc-800/60 backdrop-blur-sm shadow-2xl">
+            <CardHeader className="pb-0 px-6 pt-6">
+              {/* Tabs */}
+              <div className="flex rounded-lg bg-zinc-800/60 p-1 gap-1">
+                {[
+                  { label: 'Sign in', value: true },
+                  { label: 'Sign up', value: false },
+                ].map(({ label, value }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => { setIsLogin(value); setError(''); }}
+                    className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
+                      isLogin === value
+                        ? 'bg-violet-600 text-white shadow-sm shadow-violet-900/50'
+                        : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </CardHeader>
 
-                {/* Card */}
-                <motion.div
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    style={{ border: '1px solid #2A2010', background: '#0C0A06', padding: '24px' }}
-                >
-                    {/* Tabs */}
-                    <div style={{ display: 'flex', marginBottom: '24px', border: '1px solid #2A2010' }}>
-                        {['SIGN IN', 'SIGN UP'].map((tab, i) => (
-                            <button
-                                key={tab}
-                                onClick={() => { setIsLogin(i === 0); setError(''); }}
-                                style={{
-                                    ...MONO,
-                                    flex: 1,
-                                    padding: '8px',
-                                    background: (i === 0) === isLogin ? '#FFB800' : 'transparent',
-                                    color: (i === 0) === isLogin ? '#080705' : '#5A4A30',
-                                    border: 'none',
-                                    fontSize: '11px',
-                                    fontWeight: 700,
-                                    letterSpacing: '0.15em',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.15s',
-                                }}
-                            >
-                                {tab}
-                            </button>
-                        ))}
-                    </div>
+            <CardContent className="px-6 pb-6 pt-5">
+              {/* Error */}
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                    animate={{ opacity: 1, height: 'auto', marginBottom: 16 }}
+                    exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                    className="px-3 py-2.5 rounded-md border border-red-500/30 bg-red-500/10 text-red-400 text-xs"
+                  >
+                    {error}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-                    {/* Error */}
-                    <AnimatePresence>
-                        {error && (
-                            <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                style={{ marginBottom: '16px', padding: '10px 12px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.05)', color: '#f87171', fontSize: '11px' }}
-                            >
-                                {error}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-
-                    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        <AnimatePresence mode="wait">
-                            {!isLogin && (
-                                <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    style={{ position: 'relative' }}
-                                >
-                                    <User size={13} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#5A4A30' }} />
-                                    <input
-                                        type="text"
-                                        name="username"
-                                        placeholder="username"
-                                        value={formData.username}
-                                        onChange={handleInputChange}
-                                        style={{
-                                            ...MONO,
-                                            width: '100%',
-                                            paddingLeft: '32px', paddingRight: '12px', paddingTop: '10px', paddingBottom: '10px',
-                                            background: '#080705',
-                                            border: '1px solid #2A2010',
-                                            color: '#F0E6CC',
-                                            fontSize: '12px',
-                                            outline: 'none',
-                                            boxSizing: 'border-box',
-                                            transition: 'border-color 0.15s',
-                                        }}
-                                        onFocus={(e) => (e.target.style.borderColor = '#FFB800')}
-                                        onBlur={(e) => (e.target.style.borderColor = '#2A2010')}
-                                    />
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-
-                        {[
-                            { type: 'email', name: 'email', placeholder: 'email address', Icon: Mail },
-                            { type: 'password', name: 'password', placeholder: 'password', Icon: Lock },
-                        ].map(({ type, name, placeholder, Icon }) => (
-                            <div key={name} style={{ position: 'relative' }}>
-                                <Icon size={13} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#5A4A30' }} />
-                                <input
-                                    type={type}
-                                    name={name}
-                                    placeholder={placeholder}
-                                    value={formData[name]}
-                                    onChange={handleInputChange}
-                                    style={{
-                                        ...MONO,
-                                        width: '100%',
-                                        paddingLeft: '32px', paddingRight: '12px', paddingTop: '10px', paddingBottom: '10px',
-                                        background: '#080705',
-                                        border: '1px solid #2A2010',
-                                        color: '#F0E6CC',
-                                        fontSize: '12px',
-                                        outline: 'none',
-                                        boxSizing: 'border-box',
-                                        transition: 'border-color 0.15s',
-                                    }}
-                                    onFocus={(e) => (e.target.style.borderColor = '#FFB800')}
-                                    onBlur={(e) => (e.target.style.borderColor = '#2A2010')}
-                                />
-                            </div>
-                        ))}
-
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            style={{
-                                ...MONO,
-                                marginTop: '8px',
-                                padding: '12px',
-                                background: isLoading ? '#8A7A00' : '#FFB800',
-                                color: '#080705',
-                                border: 'none',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                letterSpacing: '0.15em',
-                                cursor: isLoading ? 'not-allowed' : 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                transition: 'background 0.15s',
-                            }}
-                            onMouseEnter={(e) => { if (!isLoading) e.currentTarget.style.background = '#FFC933'; }}
-                            onMouseLeave={(e) => { if (!isLoading) e.currentTarget.style.background = '#FFB800'; }}
-                        >
-                            {isLoading ? (
-                                <span style={{ width: '14px', height: '14px', border: '2px solid rgba(8,7,5,0.3)', borderTop: '2px solid #080705', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
-                            ) : (
-                                <>
-                                    <span>{isLogin ? 'SIGN IN' : 'CREATE ACCOUNT'}</span>
-                                    <ArrowRight size={13} />
-                                </>
-                            )}
-                        </button>
-                    </form>
-                </motion.div>
-
-                <p style={{ textAlign: 'center', marginTop: '20px', color: '#3A3020', fontSize: '11px' }}>
-                    <span
-                        style={{ cursor: 'pointer', transition: 'color 0.15s' }}
-                        onClick={() => navigate('/')}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = '#8A7A60')}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = '#3A3020')}
+              <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+                {/* Username (signup only) */}
+                <AnimatePresence mode="wait">
+                  {!isLogin && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="relative"
                     >
-                        ← back to home
-                    </span>
-                </p>
-            </div>
+                      <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
+                      <Input
+                        type="text"
+                        name="username"
+                        placeholder="Username"
+                        value={formData.username}
+                        onChange={handleInputChange}
+                        className="pl-9 bg-zinc-800/60 border-zinc-700/60 text-zinc-100 placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-violet-500/20"
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        </div>
-    );
-};
+                {/* Email */}
+                <div className="relative">
+                  <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
+                  <Input
+                    type="email"
+                    name="email"
+                    placeholder="Email address"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="pl-9 bg-zinc-800/60 border-zinc-700/60 text-zinc-100 placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-violet-500/20"
+                  />
+                </div>
 
-export default AuthPage;
+                {/* Password */}
+                <div className="relative">
+                  <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
+                  <Input
+                    type="password"
+                    name="password"
+                    placeholder="Password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className="pl-9 bg-zinc-800/60 border-zinc-700/60 text-zinc-100 placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-violet-500/20"
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="mt-1 w-full bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-900/30 gap-2"
+                >
+                  {isLoading ? (
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      {isLogin ? 'Sign in' : 'Create account'}
+                      <ArrowRight size={14} />
+                    </>
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Back link */}
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-1.5 mx-auto mt-5 text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+        >
+          <ArrowLeft size={12} />
+          Back to home
+        </button>
+      </div>
+    </div>
+  );
+}

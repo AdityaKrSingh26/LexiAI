@@ -7,6 +7,7 @@ import {
   LogOut,
   Star,
   Search,
+  Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -72,7 +73,9 @@ const Sidebar = ({ isOpen, toggleSidebar, userId }) => {
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-white/[0.05]">
           <div className="flex items-center gap-2">
-            <FileText size={15} className="text-violet-400" />
+            <div className="flex items-center justify-center w-6 h-6 rounded-md bg-violet-600/20 border border-violet-500/30">
+              <Sparkles size={11} className="text-violet-400" />
+            </div>
             <span className="text-sm font-semibold text-white/80">LexiAI</span>
           </div>
           <button

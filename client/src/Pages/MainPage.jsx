@@ -6,7 +6,7 @@ import {
     BookOpen,
     Home,
     Menu,
-    FileText,
+    Sparkles,
     Files,
     MessageSquare,
     FolderOpen,
@@ -116,7 +116,9 @@ function App() {
                         </button>
 
                         <div className="flex items-center gap-2">
-                            <FileText size={16} className="text-violet-400" />
+                            <div className="flex items-center justify-center w-6 h-6 rounded-md bg-violet-600/20 border border-violet-500/30">
+                              <Sparkles size={11} className="text-violet-400" />
+                            </div>
                             <span className="text-sm font-semibold text-white/80">LexiAI</span>
                             <span className="text-white/20 text-sm">/</span>
                             <span className="text-sm text-white/40">Chat</span>
