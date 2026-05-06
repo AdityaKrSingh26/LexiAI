@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import api from './api.js';
 import toast from 'react-hot-toast';
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+
 const useChatStore = create((set, get) => ({
   messages: [],
   currentPdf: null,
@@ -10,6 +12,8 @@ const useChatStore = create((set, get) => ({
   isUploading: false,
   uploadProgress: 0,
   chatHistory: {},
+  chatMode: 'single', // 'single' | 'multi'
+  selectedPdfIds: [],
 
   fetchPDFs: async () => {
     if (get().isLoading) return;
@@ -201,6 +205,114 @@ const useChatStore = create((set, get) => ({
       get().updateChatHistory(currentPdf.title, botMessage);
     } catch (error) {
       console.error('Failed to get answer:', error.response?.data || error.message);
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  setChatMode: (mode) => set({ chatMode: mode }),
+
+  togglePdfSelection: (pdfId) => {
+    set(state => {
+      const already = state.selectedPdfIds.includes(pdfId);
+      return {
+        selectedPdfIds: already
+          ? state.selectedPdfIds.filter(id => id !== pdfId)
+          : [...state.selectedPdfIds, pdfId]
+      };
+    });
+  },
+
+  clearPdfSelection: () => set({ selectedPdfIds: [] }),
+
+  askQuestionStream: async (question) => {
+    const { currentPdf } = get();
+    if (!currentPdf) return;
+
+    const userMessage = { type: 'user', content: question };
+    const botMessage = { type: 'bot', content: '', isStreaming: true };
+
+    set(state => ({ messages: [...state.messages, userMessage, botMessage], isLoading: true }));
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${BACKEND_URL}/api/pdfs/${currentPdf._id}/ask/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ question }),
+      });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const payload = JSON.parse(line.slice(6));
+            if (payload.token) {
+              set(state => {
+                const msgs = [...state.messages];
+                const last = msgs[msgs.length - 1];
+                msgs[msgs.length - 1] = { ...last, content: last.content + payload.token };
+                return { messages: msgs };
+              });
+            }
+            if (payload.done) {
+              set(state => {
+                const msgs = [...state.messages];
+                const last = msgs[msgs.length - 1];
+                msgs[msgs.length - 1] = { ...last, isStreaming: false, searchMetadata: payload.searchMetadata };
+                return { messages: msgs, isLoading: false };
+              });
+            }
+            if (payload.error) throw new Error(payload.error);
+          } catch { /* skip malformed */ }
+        }
+      }
+    } catch (error) {
+      console.error('Streaming failed:', error.message);
+      set(state => {
+        const msgs = [...state.messages];
+        const last = msgs[msgs.length - 1];
+        msgs[msgs.length - 1] = { ...last, content: 'Failed to get response. Please try again.', isStreaming: false };
+        return { messages: msgs, isLoading: false };
+      });
+      toast.error('Failed to get response');
+    } finally {
+      set(state => state.isLoading ? { isLoading: false } : {});
+    }
+  },
+
+  askMultiDocQuestion: async (question) => {
+    const { selectedPdfIds } = get();
+    if (selectedPdfIds.length === 0) return;
+
+    const userMessage = { type: 'user', content: question, isMultiDoc: true };
+    set(state => ({ messages: [...state.messages, userMessage], isLoading: true }));
+
+    try {
+      const { data } = await api.post('/api/pdfs/multi-chat', { pdfIds: selectedPdfIds, question });
+      const botMessage = {
+        type: 'bot',
+        content: data.data.response,
+        isMultiDoc: true,
+        sourcePdfs: data.data.sourcePdfs,
+      };
+      set(state => ({ messages: [...state.messages, botMessage] }));
+    } catch (error) {
+      console.error('Multi-doc chat failed:', error.response?.data || error.message);
+      toast.error('Failed to query documents');
     } finally {
       set({ isLoading: false });
     }

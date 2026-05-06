@@ -1,94 +1,65 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { X, RefreshCw } from 'lucide-react';
+import { X, RefreshCw, Code } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import mermaid from "mermaid";
 
-const mermaidCode = `graph TD
-  A[Client] -->|Request| B(Gateway)
-  B --> C[Server]
-  C -->|Response| B
-  B --> D[Database]`;
+let mermaidModule = null;
+const getMermaid = async () => {
+    if (!mermaidModule) mermaidModule = (await import('mermaid')).default;
+    return mermaidModule;
+};
 
-const FlowchartPopup = ({ isOpen, onClose }) => {
+const FALLBACK_CODE = `flowchart TD\n  A["Document"] --> B["Generate flowchart first"]`;
+
+const FlowchartPopup = ({ isOpen, onClose, mermaidCode }) => {
     const [isLoading, setIsLoading] = useState(true);
+    const [showRaw, setShowRaw] = useState(false);
     const chartContainerRef = useRef(null);
+    const code = mermaidCode?.trim() || FALLBACK_CODE;
 
-    // Add refresh functionality
     const renderMermaidDiagram = useCallback(async () => {
         if (!chartContainerRef.current || !isOpen) return;
-
         setIsLoading(true);
-
         try {
-            // Clear previous content
             chartContainerRef.current.innerHTML = '';
-
-            // Create a unique ID for this render
+            const cleanCode = code.replace(/^```(?:mermaid)?\s*/i, '').replace(/\s*```$/, '').trim();
             const uniqueId = `mermaid-${Date.now()}`;
-
-            // Instead of adding the mermaid code as text content,
-            // we need to create a pre element with the code
             const chartDiv = document.createElement('div');
             chartDiv.id = uniqueId;
             chartDiv.className = 'flex justify-center w-full';
-
-            // Create a pre element with the mermaid code
             const preElement = document.createElement('pre');
             preElement.className = 'mermaid';
-            preElement.textContent = mermaidCode;
-
-            // Append the pre element to the container
+            preElement.textContent = cleanCode;
             chartDiv.appendChild(preElement);
             chartContainerRef.current.appendChild(chartDiv);
-
-            // Initialize mermaid
-            await mermaid.initialize({
-                startOnLoad: false,
-                theme: 'dark',
-                securityLevel: 'loose',
-                fontFamily: 'monospace',
-            });
-
-            // Run mermaid parsing and rendering
+            const mermaid = await getMermaid();
+            await mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose', fontFamily: 'monospace' });
             await mermaid.run();
-
         } catch (error) {
-            console.error('Failed to render mermaid diagram:', error);
+            console.error('Mermaid render failed:', error);
             if (chartContainerRef.current) {
                 chartContainerRef.current.innerHTML = `
-                    <div class="text-red-500 text-center p-4">
-                        Failed to render flowchart. 
-                        <button class="ml-2 underline" onclick="window.reloadMermaid()">Try again</button>
+                    <div class="text-red-400/70 text-center p-6 text-sm">
+                        Failed to render flowchart.
+                        <button class="ml-2 underline text-violet-400 hover:text-violet-300" onclick="window.reloadMermaid()">Try again</button>
                     </div>
                 `;
             }
         } finally {
             setIsLoading(false);
         }
-    }, [isOpen]);
+    }, [isOpen, code]);
 
-    // Add refresh method to window for the error handler
     useEffect(() => {
-        if (isOpen) {
-            window.reloadMermaid = renderMermaidDiagram;
-        }
-
-        return () => {
-            window.reloadMermaid = null;
-        };
+        if (isOpen) { window.reloadMermaid = renderMermaidDiagram; }
+        return () => { window.reloadMermaid = null; };
     }, [isOpen, renderMermaidDiagram]);
 
-    // Render the diagram when popup opens
     useEffect(() => {
         if (isOpen) {
-            // Small timeout to ensure DOM is ready
-            const timer = setTimeout(() => {
-                renderMermaidDiagram();
-            }, 300); // Increased timeout to ensure DOM is fully ready
-
-            return () => clearTimeout(timer);
+            const t = setTimeout(() => renderMermaidDiagram(), 300);
+            return () => clearTimeout(t);
         }
-    }, [isOpen, renderMermaidDiagram]);
+    }, [isOpen, renderMermaidDiagram, mermaidCode]);
 
     return (
         <AnimatePresence>
@@ -96,52 +67,74 @@ const FlowchartPopup = ({ isOpen, onClose }) => {
                 <>
                     <motion.div
                         initial={{ opacity: 0 }}
-                        animate={{ opacity: 0.5 }}
+                        animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black z-50"
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
                         onClick={onClose}
                     />
-
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        transition={{ type: "spring", damping: 20, stiffness: 300 }}
-                        className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-11/12 max-w-4xl bg-gray-800 rounded-lg p-6 shadow-xl z-50"
+                        initial={{ opacity: 0, scale: 0.96, y: 12 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.96, y: 12 }}
+                        transition={{ type: 'spring', damping: 24, stiffness: 300 }}
+                        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-11/12 max-w-4xl bg-[#0D0D0E] border border-white/[0.07] rounded-2xl shadow-2xl z-50 overflow-hidden"
                     >
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold text-white">PDF Document Structure</h2>
-                            <div className="flex gap-2">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
+                            <h2 className="text-sm font-semibold text-white/80">Document Structure</h2>
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={() => setShowRaw(v => !v)}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all ${
+                                        showRaw
+                                            ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
+                                            : 'text-white/30 hover:text-white/60 hover:bg-white/[0.05] border border-transparent'
+                                    }`}
+                                >
+                                    <Code size={12} />
+                                    {showRaw ? 'Hide Code' : 'View Code'}
+                                </button>
                                 <button
                                     onClick={renderMermaidDiagram}
-                                    className="text-gray-400 hover:text-white transition-colors"
-                                    title="Refresh diagram"
+                                    className="p-2 text-white/25 hover:text-white/60 hover:bg-white/[0.05] rounded-lg transition-all"
+                                    title="Re-render"
                                 >
-                                    <RefreshCw size={20} />
+                                    <RefreshCw size={14} />
                                 </button>
                                 <button
                                     onClick={onClose}
-                                    className="text-gray-400 hover:text-white transition-colors"
+                                    className="p-2 text-white/25 hover:text-white/60 hover:bg-white/[0.05] rounded-lg transition-all"
                                 >
-                                    <X size={24} />
+                                    <X size={16} />
                                 </button>
                             </div>
                         </div>
 
-                        <div className="bg-gray-700 rounded-lg p-4 overflow-auto max-h-[70vh]">
-                            {isLoading ? (
-                                <div className="flex items-center justify-center h-64">
-                                    <div className="animate-spin">
-                                        <RefreshCw size={24} className="text-gray-400" />
-                                    </div>
+                        {/* Content */}
+                        <div className="p-5">
+                            {showRaw ? (
+                                <div className="bg-black/40 border border-white/[0.06] rounded-xl p-4 overflow-auto max-h-[65vh]">
+                                    <pre className="text-cyan-400/70 text-sm font-mono whitespace-pre-wrap">{code}</pre>
                                 </div>
                             ) : (
-                                <div className="min-h-[300px] w-full" ref={chartContainerRef}></div>
+                                <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-4 overflow-auto max-h-[65vh]">
+                                    {isLoading ? (
+                                        <div className="flex items-center justify-center h-64">
+                                            <motion.div
+                                                animate={{ rotate: 360 }}
+                                                transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
+                                            >
+                                                <RefreshCw size={20} className="text-violet-400/50" />
+                                            </motion.div>
+                                        </div>
+                                    ) : (
+                                        <div className="min-h-[300px] w-full" ref={chartContainerRef} />
+                                    )}
+                                </div>
                             )}
-                        </div>
-
-                        <div className="mt-4 text-sm text-gray-400">
-                            This flowchart visualizes the structure of your PDF document using Mermaid
+                            <p className="mt-3 text-[10px] text-white/15">
+                                AI-generated Mermaid diagram from document structure
+                            </p>
                         </div>
                     </motion.div>
                 </>

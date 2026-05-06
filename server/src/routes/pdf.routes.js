@@ -6,6 +6,8 @@ import {
     deletePDF,
     summarizePDF,
     askQuestion,
+    askQuestionStream,
+    multiDocumentChat,
     generatePDFFlow,
     getUserPDFs,
     updateNotes,
@@ -34,7 +36,8 @@ router.get('/search', searchDocuments);
 router.get('/analytics', getUserAnalytics);
 router.post('/update-file-sizes', updateFileSizes);
 router.post('/rechunk', rechunkPDFs);
-router.post('/bulk', bulkOperations);                      // ← fixed: was below /:id routes
+router.post('/bulk', bulkOperations);
+router.post('/multi-chat', multiDocumentChat);
 router.get('/me', getUserPDFs);
 
 // ── Parameterised routes ──
@@ -45,6 +48,7 @@ router.delete('/:id', deletePDF);
 // Document operations
 router.post('/:id/summarize', summarizePDF);
 router.post('/:id/ask', validateQuestion, askQuestion);
+router.post('/:id/ask/stream', validateQuestion, askQuestionStream);
 router.get('/:id/flow', generatePDFFlow);
 router.post('/:id/share', shareDocument);
 router.get('/:id/versions', getDocumentVersions);

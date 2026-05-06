@@ -6,24 +6,15 @@ import {
     FileText,
     Folder,
     Search,
-    Filter,
     Grid,
     List,
     Star,
-    Calendar,
-    BarChart3,
-    Plus,
     Upload,
     Trash2,
-    Download,
-    Tag,
     FolderPlus,
-    Settings,
-    MoreVertical,
-    Clock,
-    TrendingUp,
-    Users,
-    HardDrive
+    HardDrive,
+    MessageSquare,
+    Terminal,
 } from 'lucide-react';
 import { getUser } from '../utils/auth';
 import useDocumentStore from '../utils/documentStore';
@@ -31,21 +22,19 @@ import useChatStore from '../utils/chatStore';
 import { DocumentGridSkeleton, AnalyticsCardsSkeleton } from '../components/LoadingSkeleton';
 import CreateCollectionModal from '../components/CreateCollectionModal';
 
+const MONO = { fontFamily: "'JetBrains Mono', 'Courier New', monospace" };
+
 const Dashboard = () => {
     const navigate = useNavigate();
     const [user, setUser] = useState(null);
-    const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
-    const [showFilters, setShowFilters] = useState(false);
+    const [viewMode, setViewMode] = useState('grid');
     const [searchQuery, setSearchQuery] = useState('');
-    const [currentPath, setCurrentPath] = useState([]);
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [createType, setCreateType] = useState('collection'); // 'collection' or 'upload'
 
     const {
         documents,
         collections,
         analytics,
-        isLoading,
         loadingStates,
         fetchDocuments,
         fetchCollections,
@@ -54,7 +43,6 @@ const Dashboard = () => {
         createCollection,
         toggleFavorite,
         deleteDocument,
-        shareDocument
     } = useDocumentStore();
 
     const { setCurrentPdf, clearChat } = useChatStore();
@@ -63,7 +51,6 @@ const Dashboard = () => {
         const currentUser = getUser();
         if (currentUser) {
             setUser(currentUser);
-            // Stagger API calls to prevent rate limiting
             fetchDocuments();
             setTimeout(() => fetchCollections(), 100);
             setTimeout(() => fetchAnalytics(), 200);
@@ -72,390 +59,505 @@ const Dashboard = () => {
 
     const handleSearch = (query) => {
         setSearchQuery(query);
-        if (query.trim()) {
-            searchDocuments(query);
-        } else {
-            fetchDocuments();
-        }
+        if (query.trim()) searchDocuments(query);
+        else fetchDocuments();
     };
 
     const handleUploadDocument = () => {
-        // Clear current PDF and messages to start fresh
         setCurrentPdf(null);
         clearChat();
-        // Navigate to chat page for new upload with auto-upload parameter
         navigate('/chat');
     };
 
     const formatFileSize = (bytes) => {
-        if (!bytes || bytes === 0) return '0 Bytes';
+        if (!bytes || bytes === 0) return '0 B';
         const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        const sizes = ['B', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
-        const size = parseFloat((bytes / Math.pow(k, i)).toFixed(2));
-        
-        // Show appropriate decimal places
-        const formattedSize = size % 1 === 0 ? size.toFixed(0) : size.toFixed(1);
-        return `${formattedSize} ${sizes[i]}`;
+        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
     };
 
-    const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        });
-    };
+    const formatDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-    // Analytics Cards Component
-    const AnalyticsCards = () => (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-gray-800 rounded-lg p-6"
-            >
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-gray-400 text-sm">Total Documents</p>
-                        <p className="text-2xl font-bold text-white">{analytics?.overview?.totalDocuments || 0}</p>
-                    </div>
-                    <FileText className="text-blue-500" size={24} />
-                </div>
-            </motion.div>
-
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="bg-gray-800 rounded-lg p-6"
-            >
-                <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                        <p className="text-gray-400 text-sm">Storage Used</p>
-                        <p className="text-2xl font-bold text-white">
-                            {formatFileSize(analytics?.overview?.totalFileSize || 0)}
-                        </p>
-                        {analytics?.overview?.totalDocuments > 0 && (
-                            <p className="text-xs text-gray-500 mt-1">
-                                Avg: {formatFileSize(analytics?.overview?.avgFileSize || 0)} per document
-                            </p>
-                        )}
-                    </div>
-                    <HardDrive className="text-green-500" size={24} />
-                </div>
-            </motion.div>
-
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-gray-800 rounded-lg p-6"
-            >
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-gray-400 text-sm">Favorites</p>
-                        <p className="text-2xl font-bold text-white">{analytics?.overview?.favoriteCount || 0}</p>
-                    </div>
-                    <Star className="text-yellow-500" size={24} />
-                </div>
-            </motion.div>
-        </div>
-    );
-
-    // Toolbar Component
-    const Toolbar = () => (
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-            {/* Search and Filters */}
-            <div className="flex items-center gap-4 flex-1">
-                <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                    <input
-                        type="text"
-                        placeholder="Search documents..."
-                        value={searchQuery}
-                        onChange={(e) => handleSearch(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
-                    />
-                </div>
-                <button
-                    onClick={() => setShowFilters(!showFilters)}
-                    className="p-2 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 transition-colors"
-                >
-                    <Filter size={20} />
-                </button>
-            </div>
-
-            {/* View Controls */}
-            <div className="flex items-center gap-2">
-                <div className="flex bg-gray-800 rounded-lg p-1">
-                    <button
-                        onClick={() => setViewMode('grid')}
-                        className={`p-2 rounded ${viewMode === 'grid' ? 'bg-blue-600' : 'hover:bg-gray-700'} transition-colors`}
-                    >
-                        <Grid size={16} />
-                    </button>
-                    <button
-                        onClick={() => setViewMode('list')}
-                        className={`p-2 rounded ${viewMode === 'list' ? 'bg-blue-600' : 'hover:bg-gray-700'} transition-colors`}
-                    >
-                        <List size={16} />
-                    </button>
-                </div>
-
-                <button
-                    onClick={() => {
-                        setCreateType('collection');
-                        setShowCreateModal(true);
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
-                >
-                    <FolderPlus size={16} />
-                    New Collection
-                </button>
-
-                <button
-                    onClick={handleUploadDocument}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-                >
-                    <Upload size={16} />
-                    Upload Document
-                </button>
-            </div>
-        </div>
-    );
-
-    // Document Grid Component
-    const DocumentGrid = () => (
-        <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
-            {/* Collections */}
-            {collections.map((collection) => (
-                <motion.div
-                    key={collection._id}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className={`bg-gray-800 rounded-lg p-6 hover:bg-gray-750 transition-colors cursor-pointer ${
-                        viewMode === 'list' ? 'flex items-center justify-between' : ''
-                    }`}
-                    onClick={() => navigate(`/dashboard/collection/${collection._id}`)}
-                >
-                    <div className={`flex items-center gap-3 ${viewMode === 'list' ? 'flex-1' : ''}`}>
-                        <div className="p-3 rounded-lg" style={{ backgroundColor: collection.color + '20' }}>
-                            <Folder style={{ color: collection.color }} size={24} />
-                        </div>
-                        <div className={viewMode === 'list' ? 'flex-1' : ''}>
-                            <h3 className="font-semibold text-white truncate">{collection.name}</h3>
-                            <p className="text-gray-400 text-sm">{collection.documentCount} documents</p>
-                        </div>
-                    </div>
-                    {viewMode === 'list' && (
-                        <div className="flex items-center gap-2">
-                            <span className="text-gray-400 text-sm">{formatDate(collection.createdAt)}</span>
-                        </div>
-                    )}
-                </motion.div>
-            ))}
-
-            {/* Documents */}
-            {documents.map((doc) => (
-                <motion.div
-                    key={doc._id}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className={`bg-gray-800 rounded-lg p-6 hover:bg-gray-750 transition-colors cursor-pointer group relative ${
-                        viewMode === 'list' ? 'flex items-center justify-between' : ''
-                    }`}
-                    onClick={() => navigate(`/chat?doc=${doc._id}`)}
-                >
-                    <div className={`flex items-center gap-3 ${viewMode === 'list' ? 'flex-1' : 'w-full'}`}>
-                        
-                        {/* Action buttons for grid view */}
-                        {viewMode === 'grid' && (
-                            <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleFavorite(doc._id);
-                                    }}
-                                    className="p-1 hover:bg-gray-700 rounded text-yellow-400"
-                                    title="Toggle favorite"
-                                >
-                                    <Star size={14} />
-                                </button>
-                                <button
-                                    onClick={async (e) => {
-                                        e.stopPropagation();
-                                        if (window.confirm(`Are you sure you want to delete "${doc.title}"? This will also delete all associated chats. This action cannot be undone.`)) {
-                                            const deletingToast = toast.loading(`Deleting "${doc.title}"...`, {
-                                                icon: '🗑️',
-                                            });
-                                            
-                                            try {
-                                                await deleteDocument(doc._id);
-                                                toast.dismiss(deletingToast);
-                                                toast.success(`"${doc.title}" has been successfully deleted.`, {
-                                                    duration: 4000,
-                                                    icon: '✅',
-                                                });
-                                            } catch (error) {
-                                                toast.dismiss(deletingToast);
-                                                toast.error('Failed to delete the document. Please try again.', {
-                                                    duration: 5000,
-                                                    icon: '❌',
-                                                });
-                                            }
-                                        }
-                                    }}
-                                    className="p-1 hover:bg-gray-700 rounded text-red-400"
-                                    title="Delete document and all chats"
-                                >
-                                    <Trash2 size={14} />
-                                </button>
-                            </div>
-                        )}
-
-                        <div className="p-3 bg-red-500/20 rounded-lg flex-shrink-0">
-                            <FileText className="text-red-500" size={24} />
-                        </div>
-                        <div className={`${viewMode === 'list' ? 'flex-1' : 'flex-1 min-w-0'}`}>
-                            <h3 className="font-semibold text-white truncate" title={doc.title}>{doc.title}</h3>
-                            <p className="text-gray-400 text-sm">{formatFileSize(doc.fileSize)}</p>
-                            {doc.tags.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-2">
-                                    {doc.tags.slice(0, 3).map((tag, index) => (
-                                        <span
-                                            key={index}
-                                            className="px-2 py-1 bg-blue-600/20 text-blue-400 text-xs rounded"
-                                        >
-                                            {tag}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                        {doc.isFavorite && <Star className="text-yellow-500" size={16} />}
-                        <span className="text-gray-400 text-sm">{formatDate(doc.uploadedAt)}</span>
-                        {viewMode === 'list' && (
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleFavorite(doc._id);
-                                    }}
-                                    className="p-1 hover:bg-gray-700 rounded"
-                                >
-                                    <Star size={16} />
-                                </button>
-                                <button
-                                    onClick={async (e) => {
-                                        e.stopPropagation();
-                                        if (window.confirm(`Are you sure you want to delete "${doc.title}"? This will also delete all associated chats. This action cannot be undone.`)) {
-                                            const deletingToast = toast.loading(`Deleting "${doc.title}"...`, {
-                                                icon: '🗑️',
-                                            });
-                                            
-                                            try {
-                                                await deleteDocument(doc._id);
-                                                toast.dismiss(deletingToast);
-                                                toast.success(`"${doc.title}" has been successfully deleted.`, {
-                                                    duration: 4000,
-                                                    icon: '✅',
-                                                });
-                                            } catch (error) {
-                                                toast.dismiss(deletingToast);
-                                                toast.error('Failed to delete the document. Please try again.', {
-                                                    duration: 5000,
-                                                    icon: '❌',
-                                                });
-                                            }
-                                        }
-                                    }}
-                                    className="p-1 hover:bg-gray-700 rounded text-red-400"
-                                    title="Delete document and all chats"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </motion.div>
-            ))}
-        </div>
-    );
+    const stats = [
+        { label: 'Documents', value: analytics?.overview?.totalDocuments ?? 0, sub: null },
+        {
+            label: 'Storage',
+            value: formatFileSize(analytics?.overview?.totalFileSize || 0),
+            sub: analytics?.overview?.totalDocuments > 0
+                ? `avg ${formatFileSize(analytics?.overview?.avgFileSize || 0)}`
+                : null,
+        },
+        { label: 'Favorites', value: analytics?.overview?.favoriteCount ?? 0, sub: null },
+    ];
 
     return (
-        <div className="min-h-screen bg-gray-900 text-white">
-            {/* Header */}
-            <div className="border-b border-gray-800 px-6 py-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold">Document Management</h1>
-                        <p className="text-gray-400">Organize and manage your documents</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <span className="text-gray-400">Welcome, {user?.username}</span>
-                        <button
-                            onClick={() => navigate('/chat')}
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-                        >
-                            Go to Chat
-                        </button>
-                    </div>
-                </div>
-            </div>
+        <div style={{ ...MONO, background: '#080705', color: '#F0E6CC', minHeight: '100vh' }}>
+            {/* Grid background */}
+            <div
+                className="fixed inset-0 pointer-events-none"
+                style={{
+                    backgroundImage:
+                        'linear-gradient(#1A1508 1px, transparent 1px), linear-gradient(90deg, #1A1508 1px, transparent 1px)',
+                    backgroundSize: '48px 48px',
+                    opacity: 0.5,
+                }}
+            />
 
-            <div className="px-6 py-8">
-                {/* Analytics */}
+            {/* Header */}
+            <header
+                className="relative z-10 px-6 py-4 flex items-center justify-between"
+                style={{ borderBottom: '1px solid #2A2010' }}
+            >
+                <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
+                        <Terminal size={14} style={{ color: '#FFB800' }} />
+                        <span style={{ color: '#FFB800', fontSize: '11px', fontWeight: 700, letterSpacing: '0.2em' }}>
+                            LEXIAI
+                        </span>
+                        <span style={{ color: '#3A3020', fontSize: '13px' }}>/</span>
+                        <span style={{ color: '#8A7A60', fontSize: '11px', letterSpacing: '0.15em' }}>DASHBOARD</span>
+                    </div>
+                    {user && (
+                        <span style={{ color: '#3A3020', fontSize: '11px' }}>[{user.username}]</span>
+                    )}
+                </div>
+                <button
+                    onClick={() => navigate('/chat')}
+                    className="flex items-center gap-2 transition-colors"
+                    style={{
+                        background: '#FFB800',
+                        color: '#080705',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        letterSpacing: '0.1em',
+                        padding: '8px 16px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = '#FFC933')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = '#FFB800')}
+                >
+                    <MessageSquare size={13} />
+                    OPEN CHAT
+                </button>
+            </header>
+
+            <div className="relative z-10 max-w-7xl mx-auto px-6 py-8">
+
+                {/* Stats band */}
                 {loadingStates?.analytics ? (
-                    <AnalyticsCardsSkeleton />
+                    <div style={{ border: '1px solid #2A2010', height: '88px', marginBottom: '32px', background: '#0C0A06' }} />
                 ) : (
-                    <AnalyticsCards />
+                    <motion.div
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        style={{ border: '1px solid #2A2010', marginBottom: '32px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}
+                    >
+                        {stats.map((s, i) => (
+                            <div
+                                key={s.label}
+                                style={{
+                                    padding: '20px 24px',
+                                    borderRight: i < 2 ? '1px solid #2A2010' : 'none',
+                                }}
+                            >
+                                <p style={{ color: '#5A4A30', fontSize: '10px', letterSpacing: '0.25em', marginBottom: '8px' }}>
+                                    {s.label.toUpperCase()}
+                                </p>
+                                <p style={{ color: '#FFB800', fontSize: '28px', fontWeight: 700, lineHeight: 1 }}>
+                                    {s.value}
+                                </p>
+                                {s.sub && (
+                                    <p style={{ color: '#5A4A30', fontSize: '10px', marginTop: '4px' }}>{s.sub}</p>
+                                )}
+                            </div>
+                        ))}
+                    </motion.div>
                 )}
 
                 {/* Toolbar */}
-                <Toolbar />
+                <div
+                    className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-5"
+                    style={{ borderBottom: '1px solid #2A2010' }}
+                >
+                    <div className="flex items-center gap-4 flex-1">
+                        {/* Search */}
+                        <div className="relative flex-1 max-w-xs">
+                            <Search
+                                className="absolute"
+                                size={12}
+                                style={{ left: 0, top: '50%', transform: 'translateY(-50%)', color: '#5A4A30' }}
+                            />
+                            <input
+                                type="text"
+                                placeholder="search documents..."
+                                value={searchQuery}
+                                onChange={(e) => handleSearch(e.target.value)}
+                                style={{
+                                    ...MONO,
+                                    width: '100%',
+                                    paddingLeft: '20px',
+                                    paddingRight: '8px',
+                                    paddingTop: '6px',
+                                    paddingBottom: '6px',
+                                    background: 'transparent',
+                                    border: 'none',
+                                    borderBottom: '1px solid #2A2010',
+                                    color: '#F0E6CC',
+                                    fontSize: '11px',
+                                    outline: 'none',
+                                    transition: 'border-color 0.15s',
+                                }}
+                                onFocus={(e) => (e.target.style.borderBottomColor = '#FFB800')}
+                                onBlur={(e) => (e.target.style.borderBottomColor = '#2A2010')}
+                            />
+                        </div>
+
+                        {/* View toggle */}
+                        <div style={{ border: '1px solid #2A2010', display: 'flex' }}>
+                            {[
+                                { mode: 'grid', Icon: Grid },
+                                { mode: 'list', Icon: List },
+                            ].map(({ mode, Icon }) => (
+                                <button
+                                    key={mode}
+                                    onClick={() => setViewMode(mode)}
+                                    style={{
+                                        padding: '6px 8px',
+                                        background: viewMode === mode ? '#FFB800' : 'transparent',
+                                        color: viewMode === mode ? '#080705' : '#5A4A30',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s',
+                                    }}
+                                >
+                                    <Icon size={13} />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowCreateModal(true)}
+                            className="flex items-center gap-2 transition-all"
+                            style={{
+                                ...MONO,
+                                padding: '8px 14px',
+                                border: '1px solid #2A2010',
+                                background: 'transparent',
+                                color: '#8A7A60',
+                                fontSize: '11px',
+                                letterSpacing: '0.1em',
+                                cursor: 'pointer',
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = '#5A4A30';
+                                e.currentTarget.style.color = '#F0E6CC';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = '#2A2010';
+                                e.currentTarget.style.color = '#8A7A60';
+                            }}
+                        >
+                            <FolderPlus size={13} />
+                            NEW COLLECTION
+                        </button>
+                        <button
+                            onClick={handleUploadDocument}
+                            className="flex items-center gap-2 transition-colors"
+                            style={{
+                                ...MONO,
+                                padding: '8px 16px',
+                                background: '#FFB800',
+                                color: '#080705',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                letterSpacing: '0.1em',
+                                border: 'none',
+                                cursor: 'pointer',
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = '#FFC933')}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = '#FFB800')}
+                        >
+                            <Upload size={13} />
+                            UPLOAD
+                        </button>
+                    </div>
+                </div>
 
                 {/* Content */}
                 {loadingStates?.documents || loadingStates?.collections ? (
                     <DocumentGridSkeleton viewMode={viewMode} count={8} />
                 ) : (
-                    <DocumentGrid />
+                    <>
+                        {/* Collections */}
+                        {collections.length > 0 && (
+                            <div className="mb-8">
+                                <p style={{ color: '#5A4A30', fontSize: '10px', letterSpacing: '0.25em', marginBottom: '12px' }}>
+                                    COLLECTIONS — {collections.length}
+                                </p>
+                                <div
+                                    className={viewMode === 'grid'
+                                        ? 'grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
+                                        : 'flex flex-col gap-1'
+                                    }
+                                >
+                                    {collections.map((col, i) => (
+                                        <motion.div
+                                            key={col._id}
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ delay: i * 0.04 }}
+                                            onClick={() => navigate(`/dashboard/collection/${col._id}`)}
+                                            style={{
+                                                border: '1px solid #2A2010',
+                                                borderLeft: `2px solid ${col.color || '#FFB800'}`,
+                                                background: '#0C0A06',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.15s',
+                                                padding: viewMode === 'list' ? '10px 16px' : '16px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '12px',
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.background = '#130F08';
+                                                e.currentTarget.style.borderTopColor = '#3A3020';
+                                                e.currentTarget.style.borderRightColor = '#3A3020';
+                                                e.currentTarget.style.borderBottomColor = '#3A3020';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.background = '#0C0A06';
+                                                e.currentTarget.style.borderTopColor = '#2A2010';
+                                                e.currentTarget.style.borderRightColor = '#2A2010';
+                                                e.currentTarget.style.borderBottomColor = '#2A2010';
+                                            }}
+                                        >
+                                            <Folder size={14} style={{ color: col.color || '#FFB800', flexShrink: 0 }} />
+                                            <div style={{ minWidth: 0, flex: 1 }}>
+                                                <p style={{ fontSize: '12px', fontWeight: 700, color: '#F0E6CC', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {col.name}
+                                                </p>
+                                                <p style={{ fontSize: '10px', color: '#5A4A30', marginTop: '2px' }}>
+                                                    {col.documentCount || 0} docs
+                                                </p>
+                                            </div>
+                                            {viewMode === 'list' && (
+                                                <span style={{ fontSize: '10px', color: '#3A3020', flexShrink: 0 }}>
+                                                    {formatDate(col.createdAt)}
+                                                </span>
+                                            )}
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Documents */}
+                        {documents.length > 0 && (
+                            <div>
+                                <p style={{ color: '#5A4A30', fontSize: '10px', letterSpacing: '0.25em', marginBottom: '12px' }}>
+                                    DOCUMENTS — {documents.length}
+                                </p>
+                                <div
+                                    className={viewMode === 'grid'
+                                        ? 'grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
+                                        : 'flex flex-col gap-1'
+                                    }
+                                >
+                                    {documents.map((doc, i) => (
+                                        <motion.div
+                                            key={doc._id}
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ delay: i * 0.03 }}
+                                            className="group"
+                                            onClick={() => navigate(`/chat?doc=${doc._id}`)}
+                                            style={{
+                                                position: 'relative',
+                                                border: '1px solid #2A2010',
+                                                background: '#0C0A06',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.15s',
+                                                padding: viewMode === 'list' ? '10px 16px' : '16px',
+                                                display: 'flex',
+                                                alignItems: viewMode === 'list' ? 'center' : 'flex-start',
+                                                gap: '10px',
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.background = '#130F08';
+                                                e.currentTarget.style.borderColor = 'rgba(255, 184, 0, 0.25)';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.background = '#0C0A06';
+                                                e.currentTarget.style.borderColor = '#2A2010';
+                                            }}
+                                        >
+                                            {/* Action buttons */}
+                                            <div
+                                                className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5"
+                                                style={{ position: viewMode === 'grid' ? 'absolute' : 'static', top: '8px', right: '8px' }}
+                                            >
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); toggleFavorite(doc._id); }}
+                                                    style={{ padding: '4px', background: 'none', border: 'none', cursor: 'pointer', color: doc.isFavorite ? '#FFB800' : '#5A4A30', transition: 'color 0.15s' }}
+                                                    onMouseEnter={(e) => (e.currentTarget.style.color = '#FFB800')}
+                                                    onMouseLeave={(e) => (e.currentTarget.style.color = doc.isFavorite ? '#FFB800' : '#5A4A30')}
+                                                >
+                                                    <Star size={11} />
+                                                </button>
+                                                <button
+                                                    onClick={async (e) => {
+                                                        e.stopPropagation();
+                                                        if (window.confirm(`Delete "${doc.title}"? This will also delete all chats.`)) {
+                                                            const t = toast.loading('Deleting...');
+                                                            try {
+                                                                await deleteDocument(doc._id);
+                                                                toast.dismiss(t);
+                                                                toast.success('Document deleted');
+                                                            } catch {
+                                                                toast.dismiss(t);
+                                                                toast.error('Failed to delete');
+                                                            }
+                                                        }
+                                                    }}
+                                                    style={{ padding: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#5A4A30', transition: 'color 0.15s' }}
+                                                    onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
+                                                    onMouseLeave={(e) => (e.currentTarget.style.color = '#5A4A30')}
+                                                >
+                                                    <Trash2 size={11} />
+                                                </button>
+                                            </div>
+
+                                            <FileText size={13} style={{ color: '#5A4A30', flexShrink: 0, marginTop: viewMode === 'grid' ? '2px' : '0' }} />
+                                            <div style={{ minWidth: 0, flex: 1 }}>
+                                                <p
+                                                    title={doc.title}
+                                                    style={{
+                                                        fontSize: '12px',
+                                                        fontWeight: 700,
+                                                        color: '#F0E6CC',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        whiteSpace: 'nowrap',
+                                                        lineHeight: 1.3,
+                                                        paddingRight: viewMode === 'grid' ? '40px' : '0',
+                                                    }}
+                                                >
+                                                    {doc.title}
+                                                </p>
+                                                <p style={{ fontSize: '10px', color: '#5A4A30', marginTop: '3px' }}>
+                                                    {formatFileSize(doc.fileSize)}
+                                                </p>
+                                                {doc.tags?.length > 0 && viewMode === 'grid' && (
+                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '8px' }}>
+                                                        {doc.tags.slice(0, 2).map((tag, idx) => (
+                                                            <span
+                                                                key={idx}
+                                                                style={{
+                                                                    padding: '2px 6px',
+                                                                    border: '1px solid #2A2010',
+                                                                    color: '#5A4A30',
+                                                                    fontSize: '9px',
+                                                                    letterSpacing: '0.1em',
+                                                                }}
+                                                            >
+                                                                {tag}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {viewMode === 'list' && (
+                                                <div className="flex items-center gap-3 flex-shrink-0">
+                                                    {doc.isFavorite && <Star size={11} style={{ color: '#FFB800' }} />}
+                                                    <span style={{ fontSize: '10px', color: '#3A3020' }}>{formatDate(doc.uploadedAt)}</span>
+                                                </div>
+                                            )}
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </>
                 )}
 
-                {/* Empty State */}
-                {!isLoading && !loadingStates?.documents && !loadingStates?.collections && documents.length === 0 && collections.length === 0 && (
-                    <div className="text-center py-12">
-                        <FileText size={64} className="mx-auto text-gray-600 mb-4" />
-                        <h3 className="text-xl font-semibold mb-2">No documents yet</h3>
-                        <p className="text-gray-400 mb-6">Start by uploading your first document or creating a collection</p>
-                        <div className="flex justify-center gap-4">
+                {/* Empty state */}
+                {!loadingStates?.documents && !loadingStates?.collections && documents.length === 0 && collections.length === 0 && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        style={{
+                            textAlign: 'center',
+                            padding: '80px 24px',
+                            border: '1px dashed #2A2010',
+                        }}
+                    >
+                        <FileText size={24} style={{ color: '#3A3020', margin: '0 auto 16px' }} />
+                        <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#8A7A60', marginBottom: '8px', letterSpacing: '0.15em' }}>
+                            NO DOCUMENTS
+                        </h3>
+                        <p style={{ fontSize: '11px', color: '#5A4A30', marginBottom: '24px' }}>
+                            Upload a PDF or create a collection to begin
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
                             <button
                                 onClick={handleUploadDocument}
-                                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg"
+                                style={{
+                                    ...MONO,
+                                    padding: '10px 20px',
+                                    background: '#FFB800',
+                                    color: '#080705',
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    letterSpacing: '0.1em',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                }}
+                                onMouseEnter={(e) => (e.currentTarget.style.background = '#FFC933')}
+                                onMouseLeave={(e) => (e.currentTarget.style.background = '#FFB800')}
                             >
-                                Upload Document
+                                UPLOAD DOCUMENT
                             </button>
                             <button
                                 onClick={() => setShowCreateModal(true)}
-                                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg"
+                                style={{
+                                    ...MONO,
+                                    padding: '10px 20px',
+                                    background: 'transparent',
+                                    color: '#8A7A60',
+                                    fontSize: '11px',
+                                    letterSpacing: '0.1em',
+                                    border: '1px solid #2A2010',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = '#5A4A30';
+                                    e.currentTarget.style.color = '#F0E6CC';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = '#2A2010';
+                                    e.currentTarget.style.color = '#8A7A60';
+                                }}
                             >
-                                Create Collection
+                                CREATE COLLECTION
                             </button>
                         </div>
-                    </div>
+                    </motion.div>
                 )}
             </div>
 
-            {/* Create Collection Modal */}
             <CreateCollectionModal
                 isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
                 onCreateCollection={async (data) => {
                     await createCollection(data);
-                    toast.success('Collection created successfully');
+                    toast.success('Collection created');
                 }}
             />
         </div>

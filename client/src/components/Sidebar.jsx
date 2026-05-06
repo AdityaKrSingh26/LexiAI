@@ -1,17 +1,14 @@
 import React, { useState } from 'react';
 import {
-  Menu,
   X,
-  MessageSquare,
   FileText,
   Trash2,
-  Calendar,
   PlusCircle,
   LogOut,
   Star,
-  Search
+  Search,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import useChatStore from '../utils/chatStore';
 
@@ -19,182 +16,154 @@ const Sidebar = ({ isOpen, toggleSidebar, userId }) => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
 
-  const {
-    pdfs,
-    fetchPDFs,
-    setCurrentPdf,
-    deletePDF,
-    isLoading
-  } = useChatStore();
+  const { pdfs, fetchPDFs, setCurrentPdf, currentPdf, deletePDF } = useChatStore();
 
-
-  const handleNewChat = () => {
-    // Clear current PDF and messages to start completely fresh
-    setCurrentPdf(null);
-  };
+  const handleNewChat = () => setCurrentPdf(null);
 
   const handlePDFClick = (pdf) => {
     setCurrentPdf(pdf);
+    if (window.innerWidth < 1024) toggleSidebar();
   };
 
-  const handleLogout = async () => {
-    try {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
   };
 
   const handleDeletePDF = async (e, pdfId) => {
     e.stopPropagation();
-    
-    // Find the PDF to get its title for confirmation
-    const pdfToDelete = pdfs.find(pdf => pdf._id === pdfId);
-    const confirmMessage = `Are you sure you want to delete "${pdfToDelete?.title || 'this document'}"? This will also delete all associated chats. This action cannot be undone.`;
-    
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-    
+    const pdf = pdfs.find(p => p._id === pdfId);
+    if (!window.confirm(`Delete "${pdf?.title || 'this document'}"? This cannot be undone.`)) return;
     try {
       await deletePDF(pdfId);
       fetchPDFs();
-      // Show success message
-      alert(`"${pdfToDelete?.title || 'Document'}" has been successfully deleted.`);
-    } catch (error) {
-      console.error('Error deleting PDF:', error);
-      alert('Failed to delete the document. Please try again.');
+    } catch {
+      alert('Failed to delete. Please try again.');
     }
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
+  const formatDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-  const filteredPDFs = pdfs.filter(pdf =>
-    pdf.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filtered = pdfs.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
     <>
-      {/* Mobile toggle button */}
-      <button
-        onClick={toggleSidebar}
-        className="fixed top-4 left-4 z-50 p-2 bg-gray-800 rounded-lg lg:hidden"
-      >
-        {isOpen ? <X size={24} /> : <Menu size={24} />}
-      </button>
+      {/* Backdrop (mobile) */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 z-30 lg:hidden"
+            onClick={toggleSidebar}
+          />
+        )}
+      </AnimatePresence>
 
-      {/* Sidebar */}
+      {/* Sidebar panel */}
       <motion.div
-        initial={{ x: -300 }}
-        animate={{ x: isOpen ? 0 : -300 }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className={`fixed border-r-2 border-gray-700 top-0 left-0 h-full w-72 bg-gray-900 text-white p-6 shadow-2xl z-40 overflow-y-auto`}
+        initial={{ x: -288 }}
+        animate={{ x: isOpen ? 0 : -288 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        className="fixed top-0 left-0 h-full w-72 z-40 flex flex-col bg-[#0A0A0B] border-r border-white/[0.05]"
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold">LexiAI</h2>
-        </div>
-
-        {/* Search */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-          <input
-            type="text"
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-          />
-        </div>
-
-        {/* Quick Actions */}
-        <div className="space-y-2 mb-6">
+        <div className="flex items-center justify-between px-4 py-4 border-b border-white/[0.05]">
+          <div className="flex items-center gap-2">
+            <FileText size={15} className="text-violet-400" />
+            <span className="text-sm font-semibold text-white/80">LexiAI</span>
+          </div>
           <button
-            onClick={handleNewChat}
-            className="w-full flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors"
+            onClick={toggleSidebar}
+            className="p-1.5 text-white/30 hover:text-white/70 hover:bg-white/[0.05] rounded-lg transition-all"
           >
-            <PlusCircle size={16} />
-            <span>New Chat</span>
+            <X size={16} />
           </button>
         </div>
 
-        {/* Recent Documents */}
-        <div className="mb-6">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Recent Documents</h3>
-          <div className="space-y-2">
-            {filteredPDFs.slice(0, 10).map((pdf) => (
-              <div
-                key={pdf._id}
-                onClick={() => handlePDFClick(pdf)}
-                className="bg-gray-800 rounded-lg p-3 cursor-pointer hover:bg-gray-700 transition-colors group"
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <FileText size={16} className="text-gray-400" />
-                  <h3 className="text-sm font-medium truncate flex-1">{pdf.title}</h3>
-                  {pdf.isFavorite && <Star size={12} className="text-yellow-500" />}
-                </div>
-                
-                <div className="flex items-center justify-between text-xs text-gray-400">
-                  <div className="flex items-center gap-1">
-                    <Calendar size={12} />
-                    <span>{formatDate(pdf.createdAt)}</span>
+        {/* Search */}
+        <div className="px-3 pt-3 pb-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" size={14} />
+            <input
+              type="text"
+              placeholder="Search documents..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-white/[0.03] border border-white/[0.07] rounded-xl text-sm text-white/70 placeholder-white/20 focus:outline-none focus:border-violet-500/30 transition-all"
+            />
+          </div>
+        </div>
+
+        {/* New Chat */}
+        <div className="px-3 pb-3">
+          <button
+            onClick={handleNewChat}
+            className="w-full flex items-center gap-2 px-3 py-2 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.07] text-white/60 hover:text-white/90 rounded-xl text-sm transition-all"
+          >
+            <PlusCircle size={15} className="text-violet-400" />
+            New Chat
+          </button>
+        </div>
+
+        {/* Document list */}
+        <div className="flex-1 overflow-y-auto px-3 pb-3">
+          <p className="text-[10px] font-semibold text-white/20 uppercase tracking-widest mb-2 px-1">
+            Recent Documents
+          </p>
+          <div className="space-y-1">
+            {filtered.slice(0, 10).map((pdf) => {
+              const isActive = currentPdf?._id === pdf._id;
+              return (
+                <div
+                  key={pdf._id}
+                  onClick={() => handlePDFClick(pdf)}
+                  className={`group relative flex items-start gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition-all ${
+                    isActive
+                      ? 'bg-violet-500/10 border border-violet-500/20'
+                      : 'hover:bg-white/[0.04] border border-transparent'
+                  }`}
+                >
+                  <FileText size={14} className={isActive ? 'text-violet-400 flex-shrink-0 mt-0.5' : 'text-white/25 flex-shrink-0 mt-0.5'} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-medium truncate ${isActive ? 'text-white/90' : 'text-white/60'}`}>
+                      {pdf.title}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="text-[10px] text-white/20">{formatDate(pdf.createdAt)}</span>
+                      {pdf.isFavorite && <Star size={9} className="text-yellow-500/60" />}
+                    </div>
                   </div>
                   <button
                     onClick={(e) => handleDeletePDF(e, pdf._id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-red-400"
-                    title="Delete PDF"
+                    className="opacity-0 group-hover:opacity-100 p-1 text-white/20 hover:text-red-400 transition-all flex-shrink-0"
+                    title="Delete"
                   >
                     <Trash2 size={12} />
                   </button>
                 </div>
+              );
+            })}
 
-                {/* Tags */}
-                {pdf.tags && pdf.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {pdf.tags.slice(0, 2).map((tag, index) => (
-                      <span
-                        key={index}
-                        className="px-2 py-1 bg-blue-600/20 text-blue-400 text-xs rounded"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                    {pdf.tags.length > 2 && (
-                      <span className="text-xs text-gray-500">+{pdf.tags.length - 2}</span>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {filteredPDFs.length === 0 && (
-              <div className="text-center text-gray-500 text-sm">
-                No documents found
-              </div>
+            {filtered.length === 0 && (
+              <p className="text-xs text-white/20 text-center py-6">No documents found</p>
             )}
           </div>
         </div>
 
-        {/* Logout Button */}
-        <div className="absolute bottom-6 left-6 right-6">
+        {/* Logout */}
+        <div className="px-3 pb-4 border-t border-white/[0.05] pt-3">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-white/25 hover:text-red-400 hover:bg-red-500/[0.06] rounded-xl text-sm transition-all"
           >
-            <LogOut size={16} />
-            <span>Logout</span>
+            <LogOut size={14} />
+            Sign Out
           </button>
         </div>
       </motion.div>
-
     </>
   );
 };

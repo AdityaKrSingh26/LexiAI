@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -9,19 +9,14 @@ import {
     List,
     Plus,
     Search,
-    Filter,
     MoreVertical,
     Edit3,
     Trash2,
     Share2,
     Download,
     Star,
-    Clock,
-    Tag,
-    FolderPlus,
-    Users,
-    Settings,
-    Folder
+    Folder,
+    X,
 } from 'lucide-react';
 import { getUser } from '../utils/auth';
 import useDocumentStore from '../utils/documentStore';
@@ -32,19 +27,15 @@ import AddDocumentsModal from '../components/AddDocumentsModal';
 const CollectionView = () => {
     const navigate = useNavigate();
     const { collectionId } = useParams();
-    const [user, setUser] = useState(null);
     const [collection, setCollection] = useState(null);
     const [viewMode, setViewMode] = useState('grid');
     const [searchQuery, setSearchQuery] = useState('');
-    const [showFilters, setShowFilters] = useState(false);
     const [selectedDocuments, setSelectedDocuments] = useState([]);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showCollectionMenu, setShowCollectionMenu] = useState(false);
     const [showAddDocumentsModal, setShowAddDocumentsModal] = useState(false);
 
     const {
-        documents,
-        collections,
         isLoading,
         loadingStates,
         getCollectionById,
@@ -54,67 +45,48 @@ const CollectionView = () => {
         removeDocumentsFromCollection,
         shareCollection,
         toggleFavorite,
-        deleteDocument
     } = useDocumentStore();
 
     useEffect(() => {
-        const currentUser = getUser();
-        if (currentUser) {
-            setUser(currentUser);
-            loadCollection();
-        }
+        getUser();
+        loadCollection();
     }, [collectionId]);
 
     const loadCollection = async () => {
         try {
-            const collectionData = await getCollectionById(collectionId);
-            setCollection(collectionData);
-        } catch (error) {
-            console.error('Failed to load collection:', error);
+            const data = await getCollectionById(collectionId);
+            setCollection(data);
+        } catch {
             toast.error('Failed to load collection');
             navigate('/dashboard');
         }
     };
 
-    const handleDocumentSelect = (documentId) => {
-        setSelectedDocuments(prev => 
-            prev.includes(documentId) 
-                ? prev.filter(id => id !== documentId)
-                : [...prev, documentId]
+    const handleDocumentSelect = (id) => {
+        setSelectedDocuments(prev =>
+            prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id]
         );
-    };
-
-    const handleSelectAll = () => {
-        if (selectedDocuments.length === collection?.documents?.length) {
-            setSelectedDocuments([]);
-        } else {
-            setSelectedDocuments(collection?.documents?.map(doc => doc._id) || []);
-        }
     };
 
     const handleBulkRemove = async () => {
         if (selectedDocuments.length === 0) return;
-        
         try {
             await removeDocumentsFromCollection(collectionId, selectedDocuments);
-            toast.success(`Removed ${selectedDocuments.length} documents from collection`);
+            toast.success(`Removed ${selectedDocuments.length} documents`);
             setSelectedDocuments([]);
-            loadCollection(); // Refresh collection data
-        } catch (error) {
-            toast.error('Failed to remove documents from collection');
+            loadCollection();
+        } catch {
+            toast.error('Failed to remove documents');
         }
     };
 
     const handleDeleteCollection = async () => {
-        if (!window.confirm('Are you sure you want to delete this collection? This action cannot be undone.')) {
-            return;
-        }
-
+        if (!window.confirm('Delete this collection? This cannot be undone.')) return;
         try {
             await deleteCollection(collectionId);
-            toast.success('Collection deleted successfully');
+            toast.success('Collection deleted');
             navigate('/dashboard');
-        } catch (error) {
+        } catch {
             toast.error('Failed to delete collection');
         }
     };
@@ -122,40 +94,35 @@ const CollectionView = () => {
     const handleShareCollection = async () => {
         const email = prompt('Enter email address to share with:');
         if (!email) return;
-
         try {
             await shareCollection(collectionId, email, 'read');
-            toast.success('Collection shared successfully');
-        } catch (error) {
-            toast.error('Failed to share collection');
+            toast.success('Collection shared');
+        } catch {
+            toast.error('Failed to share');
         }
     };
 
-    const filteredDocuments = collection?.documents?.filter(doc =>
+    const filtered = collection?.documents?.filter(doc =>
         doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         doc.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
     ) || [];
 
-    const formatDate = (date) => {
-        return new Date(date).toLocaleDateString();
-    };
-
+    const formatDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     const formatFileSize = (bytes) => {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        if (!bytes) return '0 B';
+        const k = 1024, sizes = ['B', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
     };
 
     if (!collection && !isLoading) {
         return (
-            <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+            <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center">
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold text-white mb-4">Collection not found</h2>
+                    <h2 className="text-lg font-semibold text-white/70 mb-4">Collection not found</h2>
                     <button
                         onClick={() => navigate('/dashboard')}
-                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
+                        className="px-5 py-2.5 bg-white text-[#0A0A0B] rounded-xl text-sm font-medium"
                     >
                         Back to Dashboard
                     </button>
@@ -165,299 +132,270 @@ const CollectionView = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-900 text-white">
-            <div className="container mx-auto px-6 py-8">
+        <div className="min-h-screen bg-[#0A0A0B] text-white">
+            {/* Background orbs */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden">
+                <div className="absolute top-0 left-1/3 w-96 h-96 bg-violet-500/5 rounded-full blur-[128px]" />
+                <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-indigo-500/5 rounded-full blur-[128px]" />
+            </div>
+
+            <div className="relative z-10 max-w-7xl mx-auto px-6 py-8">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => navigate('/dashboard')}
-                            className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                            className="p-2 text-white/30 hover:text-white/70 hover:bg-white/[0.05] rounded-xl transition-all"
                         >
-                            <ArrowLeft size={20} />
+                            <ArrowLeft size={18} />
                         </button>
-                        
+
                         {collection && (
                             <div className="flex items-center gap-3">
-                                <div 
-                                    className="p-3 rounded-lg"
-                                    style={{ backgroundColor: collection.color + '20' }}
+                                <div
+                                    className="w-10 h-10 rounded-xl flex items-center justify-center"
+                                    style={{
+                                        backgroundColor: (collection.color || '#8b5cf6') + '20',
+                                        border: `1px solid ${collection.color || '#8b5cf6'}30`,
+                                    }}
                                 >
-                                    <Folder 
-                                        style={{ color: collection.color }} 
-                                        size={24} 
-                                    />
+                                    <Folder size={18} style={{ color: collection.color || '#8b5cf6' }} />
                                 </div>
                                 <div>
-                                    <h1 className="text-2xl font-bold">{collection.name}</h1>
-                                    <p className="text-gray-400">
+                                    <h1 className="text-lg font-semibold text-white/90">{collection.name}</h1>
+                                    <p className="text-xs text-white/30">
                                         {collection.documents?.length || 0} documents
-                                        {collection.description && ` • ${collection.description}`}
+                                        {collection.description && ` · ${collection.description}`}
                                     </p>
                                 </div>
                             </div>
                         )}
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        {/* Add Documents Button */}
+                    <div className="flex items-center gap-2">
                         <button
                             onClick={() => setShowAddDocumentsModal(true)}
-                            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg flex items-center gap-2 transition-colors"
+                            className="flex items-center gap-2 px-4 py-2 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.07] text-white/60 hover:text-white/80 rounded-xl text-sm transition-all"
                         >
-                            <Plus size={16} />
+                            <Plus size={14} />
                             Add Documents
                         </button>
 
-                        {/* Collection Actions */}
+                        {/* View toggle */}
+                        <div className="flex bg-white/[0.03] border border-white/[0.06] rounded-xl p-1 gap-0.5">
+                            {[{ v: 'grid', I: Grid }, { v: 'list', I: List }].map(({ v, I }) => (
+                                <button
+                                    key={v}
+                                    onClick={() => setViewMode(v)}
+                                    className={`p-1.5 rounded-lg transition-all ${viewMode === v ? 'bg-white/[0.08] text-white/80' : 'text-white/25 hover:text-white/50'}`}
+                                >
+                                    <I size={15} />
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* More menu */}
                         <div className="relative">
                             <button
                                 onClick={() => setShowCollectionMenu(!showCollectionMenu)}
-                                className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                                className="p-2 text-white/30 hover:text-white/70 hover:bg-white/[0.05] rounded-xl transition-all"
                             >
-                                <MoreVertical size={20} />
+                                <MoreVertical size={16} />
                             </button>
-                            
-                            {showCollectionMenu && (
-                                <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-lg border border-gray-700 z-10">
-                                    <button
-                                        onClick={() => {
-                                            setShowCreateModal(true);
-                                            setShowCollectionMenu(false);
-                                        }}
-                                        className="w-full px-4 py-2 text-left hover:bg-gray-700 flex items-center gap-2"
+                            <AnimatePresence>
+                                {showCollectionMenu && (
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                                        className="absolute right-0 mt-2 w-44 bg-[#0D0D0E] border border-white/[0.08] rounded-xl shadow-2xl z-20 overflow-hidden"
                                     >
-                                        <Edit3 size={16} />
-                                        Edit Collection
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            handleShareCollection();
-                                            setShowCollectionMenu(false);
-                                        }}
-                                        className="w-full px-4 py-2 text-left hover:bg-gray-700 flex items-center gap-2"
-                                    >
-                                        <Share2 size={16} />
-                                        Share Collection
-                                    </button>
-                                    <hr className="border-gray-700" />
-                                    <button
-                                        onClick={() => {
-                                            handleDeleteCollection();
-                                            setShowCollectionMenu(false);
-                                        }}
-                                        className="w-full px-4 py-2 text-left hover:bg-gray-700 text-red-400 flex items-center gap-2"
-                                    >
-                                        <Trash2 size={16} />
-                                        Delete Collection
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* View Mode Toggle */}
-                        <div className="flex bg-gray-800 rounded-lg p-1">
-                            <button
-                                onClick={() => setViewMode('grid')}
-                                className={`p-2 rounded ${viewMode === 'grid' ? 'bg-gray-700' : 'hover:bg-gray-700'} transition-colors`}
-                            >
-                                <Grid size={16} />
-                            </button>
-                            <button
-                                onClick={() => setViewMode('list')}
-                                className={`p-2 rounded ${viewMode === 'list' ? 'bg-gray-700' : 'hover:bg-gray-700'} transition-colors`}
-                            >
-                                <List size={16} />
-                            </button>
+                                        {[
+                                            { icon: Edit3, label: 'Edit Collection', action: () => { setShowCreateModal(true); setShowCollectionMenu(false); } },
+                                            { icon: Share2, label: 'Share', action: () => { handleShareCollection(); setShowCollectionMenu(false); } },
+                                        ].map(({ icon: Icon, label, action }) => (
+                                            <button key={label} onClick={action} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-white/50 hover:text-white/80 hover:bg-white/[0.04] transition-all">
+                                                <Icon size={14} />
+                                                {label}
+                                            </button>
+                                        ))}
+                                        <div className="border-t border-white/[0.06]" />
+                                        <button
+                                            onClick={() => { handleDeleteCollection(); setShowCollectionMenu(false); }}
+                                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-red-400/70 hover:text-red-400 hover:bg-red-500/[0.05] transition-all"
+                                        >
+                                            <Trash2 size={14} />
+                                            Delete
+                                        </button>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     </div>
                 </div>
 
-                {/* Search and Filters */}
-                <div className="mb-6">
-                    <div className="flex gap-4 items-center">
-                        <div className="flex-1 relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                            <input
-                                type="text"
-                                placeholder="Search documents in this collection..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-                        <button
-                            onClick={() => setShowFilters(!showFilters)}
-                            className="px-4 py-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg transition-colors flex items-center gap-2"
+                {/* Search */}
+                <div className="mb-5">
+                    <div className="relative max-w-sm">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" size={14} />
+                        <input
+                            type="text"
+                            placeholder="Search documents..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 bg-white/[0.03] border border-white/[0.07] rounded-xl text-sm text-white/70 placeholder-white/20 focus:outline-none focus:border-violet-500/30 transition-all"
+                        />
+                    </div>
+                </div>
+
+                {/* Bulk actions */}
+                <AnimatePresence>
+                    {selectedDocuments.length > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mb-4 p-3 bg-violet-500/[0.06] border border-violet-500/20 rounded-xl flex items-center justify-between"
                         >
-                            <Filter size={16} />
-                            Filters
-                        </button>
-                    </div>
-                </div>
-
-                {/* Bulk Actions */}
-                {selectedDocuments.length > 0 && (
-                    <div className="mb-6 p-4 bg-blue-600/10 border border-blue-600/20 rounded-lg">
-                        <div className="flex items-center justify-between">
-                            <span className="text-blue-400">
-                                {selectedDocuments.length} document(s) selected
-                            </span>
+                            <span className="text-sm text-violet-400">{selectedDocuments.length} selected</span>
                             <div className="flex gap-2">
                                 <button
                                     onClick={handleBulkRemove}
-                                    className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-2"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 rounded-lg text-xs transition-all"
                                 >
-                                    <Trash2 size={16} />
+                                    <Trash2 size={12} />
                                     Remove from Collection
                                 </button>
                                 <button
                                     onClick={() => setSelectedDocuments([])}
-                                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg"
+                                    className="p-1.5 text-white/30 hover:text-white/60 transition-colors"
                                 >
-                                    Cancel
+                                    <X size={14} />
                                 </button>
                             </div>
-                        </div>
-                    </div>
-                )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
-                {/* Documents Grid/List */}
+                {/* Document grid */}
                 {loadingStates?.documents || isLoading ? (
                     <DocumentGridSkeleton viewMode={viewMode} count={6} />
                 ) : (
-                    <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
-                        {filteredDocuments.map((document) => (
-                            <motion.div
-                                key={document._id}
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className={`bg-gray-800 rounded-lg p-6 hover:bg-gray-750 transition-all cursor-pointer ${
-                                    selectedDocuments.includes(document._id) ? 'ring-2 ring-blue-500' : ''
-                                } ${viewMode === 'list' ? 'flex items-center justify-between' : ''}`}
-                            >
-                                <div className={`flex items-start gap-3 ${viewMode === 'list' ? 'flex-1' : ''}`}>
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedDocuments.includes(document._id)}
-                                        onChange={() => handleDocumentSelect(document._id)}
-                                        className="mt-1"
-                                        onClick={(e) => e.stopPropagation()}
-                                    />
-                                    
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <FileText className="text-blue-400" size={20} />
-                                            <h3 
-                                                className="font-semibold text-white truncate cursor-pointer hover:text-blue-400"
-                                                onClick={() => navigate(`/chat?pdf=${document._id}`)}
-                                            >
-                                                {document.title}
-                                            </h3>
-                                            {document.isFavorite && <Star className="text-yellow-500" size={16} />}
+                    <div className={`grid gap-3 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
+                        {filtered.map((doc, i) => {
+                            const isSelected = selectedDocuments.includes(doc._id);
+                            return (
+                                <motion.div
+                                    key={doc._id}
+                                    initial={{ opacity: 0, y: 12 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: i * 0.04 }}
+                                    className={`group relative bg-white/[0.02] hover:bg-white/[0.04] border transition-all rounded-2xl p-4 cursor-pointer ${
+                                        isSelected
+                                            ? 'border-violet-500/40 bg-violet-500/[0.04]'
+                                            : 'border-white/[0.05] hover:border-violet-500/20'
+                                    } ${viewMode === 'list' ? 'flex items-center gap-4' : ''}`}
+                                >
+                                    <div className={`flex items-start gap-3 ${viewMode === 'list' ? 'flex-1' : 'mb-2'}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={() => handleDocumentSelect(doc._id)}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="mt-0.5 accent-violet-500 flex-shrink-0"
+                                        />
+                                        <div className="w-8 h-8 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center flex-shrink-0">
+                                            <FileText size={14} className="text-violet-400" />
                                         </div>
-                                        
-                                        <div className="text-sm text-gray-400 space-y-1">
-                                            <div className="flex items-center gap-4">
-                                                <span>{formatFileSize(document.fileSize || 0)}</span>
-                                                <span className="flex items-center gap-1">
-                                                    <Clock size={12} />
-                                                    {formatDate(document.uploadedAt)}
-                                                </span>
+                                        <div className="flex-1 min-w-0">
+                                            <p
+                                                className="text-sm font-medium text-white/80 truncate hover:text-violet-400 transition-colors cursor-pointer"
+                                                onClick={() => navigate(`/chat?pdf=${doc._id}`)}
+                                            >
+                                                {doc.title}
+                                            </p>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="text-xs text-white/25">{formatFileSize(doc.fileSize || 0)}</span>
+                                                <span className="text-white/15 text-xs">·</span>
+                                                <span className="text-xs text-white/25">{formatDate(doc.uploadedAt)}</span>
+                                                {doc.isFavorite && <Star size={10} className="text-yellow-400/60" />}
                                             </div>
-                                            
-                                            {document.tags && document.tags.length > 0 && (
-                                                <div className="flex flex-wrap gap-1 mt-2">
-                                                    {document.tags.slice(0, 3).map((tag, index) => (
-                                                        <span
-                                                            key={index}
-                                                            className="px-2 py-1 bg-blue-600/20 text-blue-400 text-xs rounded"
-                                                        >
+                                            {doc.tags?.length > 0 && viewMode === 'grid' && (
+                                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                                    {doc.tags.slice(0, 2).map((tag, idx) => (
+                                                        <span key={idx} className="px-1.5 py-0.5 bg-violet-500/10 text-violet-400/70 text-[10px] rounded-full border border-violet-500/15">
                                                             {tag}
                                                         </span>
                                                     ))}
-                                                    {document.tags.length > 3 && (
-                                                        <span className="px-2 py-1 bg-gray-700 text-gray-400 text-xs rounded">
-                                                            +{document.tags.length - 3}
-                                                        </span>
-                                                    )}
                                                 </div>
                                             )}
                                         </div>
                                     </div>
-                                </div>
 
-                                {viewMode === 'list' && (
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                toggleFavorite(document._id);
-                                            }}
-                                            className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-                                        >
-                                            <Star 
-                                                size={16} 
-                                                className={document.isFavorite ? 'text-yellow-500' : 'text-gray-400'} 
-                                            />
-                                        </button>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                window.open(document.url, '_blank');
-                                            }}
-                                            className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-                                        >
-                                            <Download size={16} className="text-gray-400" />
-                                        </button>
-                                    </div>
-                                )}
-                            </motion.div>
-                        ))}
+                                    {viewMode === 'list' && (
+                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); toggleFavorite(doc._id); }}
+                                                className="p-1.5 text-white/20 hover:text-yellow-400 transition-colors rounded-lg hover:bg-white/[0.05]"
+                                            >
+                                                <Star size={14} />
+                                            </button>
+                                            {doc.url && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); window.open(doc.url, '_blank'); }}
+                                                    className="p-1.5 text-white/20 hover:text-white/60 transition-colors rounded-lg hover:bg-white/[0.05]"
+                                                >
+                                                    <Download size={14} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </motion.div>
+                            );
+                        })}
                     </div>
                 )}
 
-                {/* Empty State */}
-                {!isLoading && !loadingStates?.documents && filteredDocuments.length === 0 && (
-                    <div className="text-center py-12">
-                        <FileText size={64} className="mx-auto text-gray-600 mb-4" />
-                        <h3 className="text-xl font-semibold mb-2">No documents in this collection</h3>
-                        <p className="text-gray-400 mb-6">
-                            {searchQuery ? 'No documents match your search.' : 'Start by adding documents to this collection.'}
-                        </p>
+                {/* Empty state */}
+                {!isLoading && !loadingStates?.documents && filtered.length === 0 && (
+                    <div className="text-center py-20">
+                        <div className="w-14 h-14 rounded-2xl bg-white/[0.03] border border-white/[0.07] flex items-center justify-center mx-auto mb-4">
+                            <FileText size={22} className="text-white/20" />
+                        </div>
+                        <h3 className="text-sm font-semibold text-white/50 mb-2">
+                            {searchQuery ? 'No documents match your search' : 'No documents in this collection'}
+                        </h3>
                         {!searchQuery && (
                             <button
-                                onClick={() => navigate('/dashboard')}
-                                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg"
+                                onClick={() => setShowAddDocumentsModal(true)}
+                                className="mt-4 px-5 py-2.5 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.07] text-white/50 rounded-xl text-sm transition-all"
                             >
-                                Browse Documents
+                                Add Documents
                             </button>
                         )}
                     </div>
                 )}
             </div>
 
-            {/* Create/Edit Collection Modal */}
             <CreateCollectionModal
                 isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
                 onCreateCollection={async (data) => {
                     await updateCollection(collectionId, data);
                     loadCollection();
-                    toast.success('Collection updated successfully');
+                    toast.success('Collection updated');
                 }}
                 initialData={collection}
                 isEditing={true}
             />
 
-            {/* Add Documents Modal */}
             <AddDocumentsModal
                 isOpen={showAddDocumentsModal}
                 onClose={() => setShowAddDocumentsModal(false)}
-                onAddDocuments={async (documentIds) => {
-                    await addDocumentsToCollection(collectionId, documentIds);
+                onAddDocuments={async (ids) => {
+                    await addDocumentsToCollection(collectionId, ids);
                     loadCollection();
-                    toast.success(`Added ${documentIds.length} documents to collection`);
+                    toast.success(`Added ${ids.length} documents`);
                 }}
                 collectionId={collectionId}
             />

@@ -18,9 +18,20 @@ export default {
           700: '#1d4ed8',
         },
       },
+      backgroundImage: {
+        'gradient-conic': 'conic-gradient(var(--tw-gradient-stops))',
+        'gradient-conic-t': 'conic-gradient(from 0deg at 50% 0%, var(--tw-gradient-stops))',
+      },
     },
   },
   plugins: [
     require('@tailwindcss/typography'),
+    function({ addUtilities }) {
+      addUtilities({
+        '.bg-gradient-conic': {
+          backgroundImage: 'conic-gradient(var(--tw-gradient-stops))',
+        },
+      });
+    },
   ],
 };

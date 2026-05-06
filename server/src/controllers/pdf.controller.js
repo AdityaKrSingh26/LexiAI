@@ -5,7 +5,7 @@ import Chat from '../models/chat.model.js';
 import pdfParse from 'pdf-parse';
 import { v2 as cloudinary } from 'cloudinary';
 import { getRelevantContext, preprocessPDFContent } from '../utils/textChunking.js';
-import { generateText } from '../utils/aiClient.js';
+import { generateText, generateTextStream, generateTags } from '../utils/aiClient.js';
 
 // Max characters to send in a single prompt (avoids context window overflow)
 const MAX_PROMPT_CHARS = 30000;
@@ -90,6 +90,16 @@ export const uploadPDF = async (req, res) => {
             mimeType: req.file.mimetype || 'application/pdf',
             status: 'ready'
         });
+
+        // Fire-and-forget AI tag generation — doesn't block the upload response
+        if (pdfContent && pdfContent.length > 50) {
+            generateTags(pdfContent).then(tags => {
+                if (tags.length > 0) {
+                    PDF.findByIdAndUpdate(pdf._id, { tags }).exec();
+                    console.log(`[uploadPDF] Auto-tagged "${pdf.title}":`, tags);
+                }
+            }).catch(() => {});
+        }
 
         // Return response without the textContent field
         const responseData = pdf.toObject();
@@ -631,8 +641,18 @@ export const generatePDFFlow = async (req, res) => {
             const truncatedContent = pdf.textContent.length > MAX_PROMPT_CHARS
                 ? pdf.textContent.substring(0, MAX_PROMPT_CHARS) + '\n[Note: Document truncated for processing]'
                 : pdf.textContent;
-            const prompt = `Generate a structured flow or outline of the main concepts and their relationships from the following text: ${truncatedContent}`;
-            const flow = await generateText(prompt, 1024);
+            const prompt = `Analyze the following document and generate a Mermaid flowchart diagram showing the main concepts, sections, and their relationships.
+
+STRICT REQUIREMENTS:
+- Output ONLY valid Mermaid syntax, nothing else — no explanation, no markdown fences
+- Start with exactly: flowchart TD
+- Use quoted labels for nodes with spaces e.g. A["My Node"]
+- Maximum 15 nodes to keep it readable
+- Use --> for connections, add short edge labels where helpful
+
+DOCUMENT:
+${truncatedContent}`;
+            const flow = await generateText(prompt, 800);
 
             console.log(`[generatePDFFlow] Successfully generated flow for PDF: ${pdf._id}`);
 
@@ -1313,6 +1333,193 @@ export const rechunkPDFs = async (req, res) => {
             success: false,
             message: 'Failed to re-chunk PDFs',
         });
+    }
+};
+
+// Stream AI answer for a single PDF via SSE
+export const askQuestionStream = async (req, res) => {
+    console.log("[askQuestionStream] Streaming question for PDF:", req.params.id);
+    try {
+        const { question } = req.body;
+        const userId = req.user._id;
+
+        if (!question?.trim()) {
+            return res.status(400).json({ success: false, message: 'Question is required' });
+        }
+
+        const pdf = await PDF.findOne({ _id: req.params.id, user: userId }).select('+textContent +chunks');
+        if (!pdf) return res.status(404).json({ success: false, message: 'PDF not found' });
+        if (!pdf.textContent?.trim()) return res.status(400).json({ success: false, message: 'PDF has no text content' });
+
+        // Build context (same logic as askQuestion)
+        let contextText = '';
+        let metadata = {};
+        if (pdf.chunkingEnabled && pdf.chunks?.length > 0) {
+            const relevantContext = getRelevantContext(question, pdf.textContent, { maxChunkSize: 2000, overlap: 200, topK: 3, maxContextLength: 6000 });
+            contextText = relevantContext.contextText;
+            metadata = relevantContext.metadata;
+        } else {
+            contextText = pdf.textContent.length > 6000
+                ? pdf.textContent.substring(0, 6000) + '\n[truncated]'
+                : pdf.textContent;
+            metadata = { totalChunks: 1, selectedChunks: 1, contextLength: contextText.length, averageRelevanceScore: 1.0 };
+        }
+
+        const prompt = `You are analyzing a document to answer a specific question. Use the provided relevant sections to give an accurate and helpful response.
+
+QUESTION: ${question}
+
+RELEVANT DOCUMENT SECTIONS:
+${contextText}
+
+INSTRUCTIONS:
+1. Answer the question based on the provided sections
+2. If the information is not fully covered, mention that
+3. Be specific and cite relevant parts when possible
+4. If you need to make inferences, clearly indicate them
+5. Keep your response focused and concise
+
+ANSWER:`;
+
+        // SSE headers
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no');
+        res.flushHeaders();
+
+        const groqResponse = await generateTextStream(prompt, 1024);
+        const reader = groqResponse.body.getReader();
+        const decoder = new TextDecoder();
+        let fullResponse = '';
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+
+            const lines = buffer.split('\n');
+            buffer = lines.pop(); // Keep incomplete last line in buffer
+
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                const raw = line.slice(6).trim();
+                if (raw === '[DONE]') continue;
+                try {
+                    const parsed = JSON.parse(raw);
+                    const token = parsed.choices?.[0]?.delta?.content;
+                    if (token) {
+                        fullResponse += token;
+                        res.write(`data: ${JSON.stringify({ token })}\n\n`);
+                    }
+                } catch { /* skip malformed */ }
+            }
+        }
+
+        // Save chat record
+        const chat = await Chat.create({
+            pdfId: pdf._id,
+            userId,
+            question,
+            response: fullResponse,
+            metadata: {
+                searchMethod: pdf.chunkingEnabled ? 'semantic_search' : 'full_content',
+                chunksUsed: metadata.selectedChunks || 1,
+                totalChunks: metadata.totalChunks || 1,
+                contextLength: metadata.contextLength,
+                averageRelevanceScore: metadata.averageRelevanceScore,
+            }
+        });
+        await pdf.addChat(chat._id);
+
+        res.write(`data: ${JSON.stringify({ done: true, chatId: chat._id, searchMetadata: metadata })}\n\n`);
+        res.end();
+    } catch (error) {
+        console.error("[askQuestionStream] Error:", error.message);
+        if (!res.headersSent) {
+            res.status(500).json({ success: false, message: 'Failed to stream response' });
+        } else {
+            res.write(`data: ${JSON.stringify({ error: 'Stream failed' })}\n\n`);
+            res.end();
+        }
+    }
+};
+
+// Chat across multiple PDFs — combines relevant chunks from each document
+export const multiDocumentChat = async (req, res) => {
+    console.log("[multiDocumentChat] Processing multi-doc question");
+    try {
+        const { pdfIds, question } = req.body;
+        const userId = req.user._id;
+
+        if (!question?.trim()) return res.status(400).json({ success: false, message: 'Question is required' });
+        if (!Array.isArray(pdfIds) || pdfIds.length < 1) return res.status(400).json({ success: false, message: 'Provide at least one PDF ID' });
+        if (pdfIds.length > 5) return res.status(400).json({ success: false, message: 'Maximum 5 documents per query' });
+
+        // Fetch all PDFs, verify ownership
+        const pdfs = await PDF.find({
+            _id: { $in: pdfIds },
+            $or: [{ user: userId }, { 'sharedWith.user': userId }]
+        }).select('+textContent +chunks');
+
+        if (pdfs.length === 0) return res.status(404).json({ success: false, message: 'No accessible PDFs found' });
+
+        // Build combined context with source attribution
+        const sourcePdfs = [];
+        let combinedContext = '';
+
+        for (const pdf of pdfs) {
+            if (!pdf.textContent?.trim()) continue;
+
+            let chunkContext = '';
+            let chunkMeta = {};
+
+            if (pdf.chunkingEnabled && pdf.chunks?.length > 0) {
+                const result = getRelevantContext(question, pdf.textContent, { maxChunkSize: 2000, overlap: 200, topK: 2, maxContextLength: 2000 });
+                chunkContext = result.contextText;
+                chunkMeta = result.metadata;
+            } else {
+                chunkContext = pdf.textContent.substring(0, 2000);
+                chunkMeta = { selectedChunks: 1 };
+            }
+
+            combinedContext += `\n\n--- Source: "${pdf.title}" ---\n${chunkContext}`;
+            sourcePdfs.push({ id: pdf._id, title: pdf.title, chunksUsed: chunkMeta.selectedChunks || 1 });
+        }
+
+        if (!combinedContext.trim()) return res.status(400).json({ success: false, message: 'No text content available in selected PDFs' });
+
+        const prompt = `You are analyzing MULTIPLE documents to answer a question. For each piece of information you use, cite the source document by name using the format [Source: "Document Title"].
+
+QUESTION: ${question}
+
+DOCUMENTS:
+${combinedContext}
+
+INSTRUCTIONS:
+1. Synthesize information from all provided documents
+2. Cite sources inline using [Source: "Title"] format
+3. If documents have conflicting information, note the discrepancy
+4. Be comprehensive but focused on the question
+
+ANSWER:`;
+
+        const response = await generateText(prompt, 1500);
+
+        // Save a chat record for each PDF that contributed
+        for (const pdf of pdfs) {
+            const chat = await Chat.create({ pdfId: pdf._id, userId, question, response, metadata: { searchMethod: 'semantic_search' } });
+            await PDF.findByIdAndUpdate(pdf._id, { $push: { chats: chat._id } });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: { response, sourcePdfs, documentCount: pdfs.length }
+        });
+    } catch (error) {
+        console.error("[multiDocumentChat] Error:", error.message);
+        res.status(500).json({ success: false, message: 'Failed to process multi-document query' });
     }
 };
 
